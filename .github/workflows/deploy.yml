@@ -1,17 +1,7 @@
 name: Deploy to Production
 
 on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment environment'
-        required: true
-        default: 'production'
-        type: choice
-        options: [production, staging]
-  push:
-    branches: [main]
-    tags: ['v*']
+  workflow_dispatch: # temporarily disabled — enable triggers when ready to deploy
 
 jobs:
   deploy:

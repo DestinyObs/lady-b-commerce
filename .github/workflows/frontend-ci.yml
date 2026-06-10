@@ -1,15 +1,7 @@
 name: Frontend CI
 
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - 'lady-b-fe/**'
-      - '.github/workflows/frontend-ci.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'lady-b-fe/**'
+  workflow_dispatch: # temporarily disabled — enable triggers when ready to deploy
 
 defaults:
   run:

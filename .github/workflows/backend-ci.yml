@@ -1,15 +1,7 @@
 name: Backend CI
 
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - 'lady-b-be/**'
-      - '.github/workflows/backend-ci.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'lady-b-be/**'
+  workflow_dispatch: # temporarily disabled — enable triggers when ready to deploy
 
 defaults:
   run:
