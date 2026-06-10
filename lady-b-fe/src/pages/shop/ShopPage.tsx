@@ -1,70 +1,55 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { SlidersHorizontal, X, Heart, ShoppingBag } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Heart, ShoppingBag, X } from 'lucide-react';
+import { api } from '../../lib/axios';
+import { formatCurrency } from '../../lib/utils';
+import { useCartStore } from '../../store/cart.store';
+import { Pagination } from '../../components/ui/Pagination';
+import { Skeleton } from '../../components/ui/Skeleton';
 
 const FADE_UP = {
   hidden: { opacity: 0, y: 24 },
   visible: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.55, delay: i * 0.07, ease: [0.25, 1, 0.5, 1] } }),
 };
 
-const CATEGORIES = ['All', 'Bead Bags', 'Necklaces', 'Bracelets', 'Earrings', 'Bespoke'];
+const SORT_MAP: Record<string, string> = {
+  'Featured': 'featured',
+  'Newest': 'newest',
+  'Price: Low to High': 'price_asc',
+  'Price: High to Low': 'price_desc',
+  'Name A–Z': 'name_asc',
+};
 
-const SORT_OPTIONS = ['Featured', 'Price: Low to High', 'Price: High to Low', 'Newest'];
+const SORT_OPTIONS = Object.keys(SORT_MAP);
+const PAGE_SIZE = 12;
 
-const PRODUCTS = [
-  {
-    id: 'p1', slug: 'cobalt-eveninng-clutch', name: 'Cobalt Evening Clutch',
-    price: 340, category: 'Bead Bags',
-    img: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=700&q=85&auto=format&fit=crop',
-    badge: 'New',
-  },
-  {
-    id: 'p2', slug: 'crimson-beaded-minaudiere', name: 'Crimson Minaudière',
-    price: 285, category: 'Bead Bags',
-    img: 'https://images.unsplash.com/photo-1590548784585-643d2b9f2925?w=700&q=85&auto=format&fit=crop',
-    badge: null,
-  },
-  {
-    id: 'p3', slug: 'ivory-pearl-necklace', name: 'Ivory Pearl Statement',
-    price: 175, category: 'Necklaces',
-    img: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=700&q=85&auto=format&fit=crop',
-    badge: 'Bestseller',
-  },
-  {
-    id: 'p4', slug: 'emerald-crossbody', name: 'Emerald Crossbody',
-    price: 420, category: 'Bead Bags',
-    img: 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=700&q=85&auto=format&fit=crop',
-    badge: null,
-  },
-  {
-    id: 'p5', slug: 'gold-beaded-choker', name: 'Gold Beaded Choker',
-    price: 145, category: 'Necklaces',
-    img: 'https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=700&q=85&auto=format&fit=crop',
-    badge: null,
-  },
-  {
-    id: 'p6', slug: 'midnight-clutch', name: 'Midnight Clutch',
-    price: 310, category: 'Bead Bags',
-    img: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=700&q=85&auto=format&fit=crop&sat=-30',
-    badge: 'Limited',
-  },
-  {
-    id: 'p7', slug: 'amber-wrist-cuff', name: 'Amber Wrist Cuff',
-    price: 95, category: 'Bracelets',
-    img: 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=700&q=85&auto=format&fit=crop&hue=30',
-    badge: null,
-  },
-  {
-    id: 'p8', slug: 'sapphire-drop-earrings', name: 'Sapphire Drop Earrings',
-    price: 120, category: 'Earrings',
-    img: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=700&q=85&auto=format&fit=crop&sat=20',
-    badge: 'New',
-  },
-];
+interface ProductItem {
+  id: string;
+  slug: string;
+  name: string;
+  price: number;
+  category?: { name: string };
+  images?: Array<{ url: string; altText?: string }>;
+  isFeatured?: boolean;
+  badge?: string;
+}
 
-function ProductCard({ product, index }: { product: typeof PRODUCTS[0]; index: number }) {
+function ProductCard({ product, index }: { product: ProductItem; index: number }) {
   const [wished, setWished] = useState(false);
+  const { addItem } = useCartStore();
+
+  const handleAddToBag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    addItem({
+      id: `local-${product.id}`,
+      productId: product.id,
+      quantity: 1,
+      price: product.price,
+      product: { id: product.id, name: product.name, slug: product.slug, images: product.images },
+    });
+  };
 
   return (
     <motion.div
@@ -72,17 +57,21 @@ function ProductCard({ product, index }: { product: typeof PRODUCTS[0]; index: n
       className="group"
     >
       <div className="relative overflow-hidden bg-charcoal-50 aspect-[3/4]">
-        <img
-          src={product.img}
-          alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-        />
+        {product.images?.[0] ? (
+          <img
+            src={product.images[0].url}
+            alt={product.images[0].altText || product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-charcoal-100 to-charcoal-200" />
+        )}
         {product.badge && (
           <span className="absolute top-3 left-3 bg-charcoal-900 text-ivory text-2xs tracking-luxury uppercase font-body px-2.5 py-1">
             {product.badge}
           </span>
         )}
-        {/* Hover actions */}
         <div className="absolute bottom-0 left-0 right-0 p-4 flex gap-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
           <button
             onClick={() => setWished(w => !w)}
@@ -92,6 +81,7 @@ function ProductCard({ product, index }: { product: typeof PRODUCTS[0]; index: n
             <Heart className={`h-4 w-4 ${wished ? 'fill-current' : ''}`} />
           </button>
           <button
+            onClick={handleAddToBag}
             className="flex-1 flex items-center justify-center gap-2 bg-charcoal-900 text-ivory text-xs tracking-luxury uppercase font-body hover:bg-charcoal-800 transition-colors py-2.5 px-4"
           >
             <ShoppingBag className="h-3.5 w-3.5" />
@@ -100,26 +90,61 @@ function ProductCard({ product, index }: { product: typeof PRODUCTS[0]; index: n
         </div>
       </div>
       <div className="pt-4">
-        <p className="text-charcoal-400 text-xs tracking-luxury uppercase font-body mb-1">{product.category}</p>
+        {product.category && (
+          <p className="text-charcoal-400 text-xs tracking-luxury uppercase font-body mb-1">{product.category.name}</p>
+        )}
         <Link to={`/product/${product.slug}`} className="font-serif font-light text-xl text-charcoal-900 hover:text-charcoal-600 transition-colors block mb-1">
           {product.name}
         </Link>
-        <p className="text-charcoal-700 font-body">${product.price.toLocaleString()}</p>
+        <p className="text-charcoal-700 font-body">{formatCurrency(product.price)}</p>
       </div>
     </motion.div>
+  );
+}
+
+function ProductSkeleton() {
+  return (
+    <div>
+      <Skeleton className="aspect-[3/4] w-full" />
+      <div className="pt-4 space-y-2">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-5 w-full" />
+        <Skeleton className="h-4 w-16" />
+      </div>
+    </div>
   );
 }
 
 export default function ShopPage() {
   useEffect(() => { document.title = 'Shop | Lady B Designs & Handcraft'; }, []);
 
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeCategory, setActiveCategory] = useState('');
   const [activeSort, setActiveSort] = useState('Featured');
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const filtered = activeCategory === 'All'
-    ? PRODUCTS
-    : PRODUCTS.filter(p => p.category === activeCategory);
+  const { data, isLoading } = useQuery({
+    queryKey: ['shop-products', page, activeCategory, activeSort],
+    queryFn: () =>
+      api.get(`/products?page=${page}&limit=${PAGE_SIZE}&status=ACTIVE&categorySlug=${encodeURIComponent(activeCategory)}&sort=${SORT_MAP[activeSort] || 'featured'}`)
+        .then((r) => r.data.data),
+    placeholderData: (prev) => prev,
+  });
+
+  const { data: categoriesData } = useQuery({
+    queryKey: ['product-categories'],
+    queryFn: () => api.get('/categories?isActive=true&limit=20').then((r) => r.data.data?.categories || []),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const products: ProductItem[] = data?.products || [];
+  const total: number = data?.total || 0;
+  const categories: Array<{ id: string; name: string; slug: string }> = categoriesData || [];
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const handleCategoryChange = (slug: string) => {
+    setActiveCategory(slug);
+    setPage(1);
+  };
 
   return (
     <div className="min-h-screen bg-ivory">
@@ -146,23 +171,29 @@ export default function ShopPage() {
               initial="hidden" animate="visible" custom={2} variants={FADE_UP}
               className="text-charcoal-400 font-body text-sm"
             >
-              {filtered.length} pieces
+              {isLoading ? '…' : `${total} piece${total !== 1 ? 's' : ''}`}
             </motion.p>
           </div>
 
           {/* Category filters */}
           <div className="flex items-center gap-3 mt-8 overflow-x-auto pb-1">
-            {CATEGORIES.map((cat) => (
+            <button
+              onClick={() => handleCategoryChange('')}
+              className={`flex-shrink-0 px-5 py-2.5 text-xs tracking-luxury uppercase font-body border transition-colors duration-200 ${
+                activeCategory === '' ? 'bg-charcoal-900 border-charcoal-900 text-ivory' : 'border-charcoal-200 text-charcoal-600 hover:border-charcoal-500'
+              }`}
+            >
+              All
+            </button>
+            {categories.map((cat) => (
               <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
+                key={cat.id}
+                onClick={() => handleCategoryChange(cat.slug)}
                 className={`flex-shrink-0 px-5 py-2.5 text-xs tracking-luxury uppercase font-body border transition-colors duration-200 ${
-                  activeCategory === cat
-                    ? 'bg-charcoal-900 border-charcoal-900 text-ivory'
-                    : 'border-charcoal-200 text-charcoal-600 hover:border-charcoal-500'
+                  activeCategory === cat.slug ? 'bg-charcoal-900 border-charcoal-900 text-ivory' : 'border-charcoal-200 text-charcoal-600 hover:border-charcoal-500'
                 }`}
               >
-                {cat}
+                {cat.name}
               </button>
             ))}
           </div>
@@ -172,38 +203,54 @@ export default function ShopPage() {
       {/* Toolbar */}
       <div className="border-b border-charcoal-100">
         <div className="container-luxury py-4 flex items-center justify-between">
-          <button
-            onClick={() => setFiltersOpen(f => !f)}
-            className="flex items-center gap-2 text-xs tracking-luxury uppercase font-body text-charcoal-600 hover:text-charcoal-900 transition-colors"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            Filters
-          </button>
-          <select
-            value={activeSort}
-            onChange={(e) => setActiveSort(e.target.value)}
-            className="bg-transparent text-xs tracking-luxury uppercase font-body text-charcoal-600 focus:outline-none cursor-pointer"
-          >
-            {SORT_OPTIONS.map(o => <option key={o}>{o}</option>)}
-          </select>
+          {activeCategory && (
+            <button
+              onClick={() => handleCategoryChange('')}
+              className="flex items-center gap-1.5 text-xs tracking-luxury uppercase font-body text-charcoal-500 hover:text-charcoal-900 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" /> Clear filter
+            </button>
+          )}
+          <div className="ml-auto">
+            <select
+              value={activeSort}
+              onChange={(e) => { setActiveSort(e.target.value); setPage(1); }}
+              className="bg-transparent text-xs tracking-luxury uppercase font-body text-charcoal-600 focus:outline-none cursor-pointer"
+            >
+              {SORT_OPTIONS.map(o => <option key={o}>{o}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Product grid */}
       <section className="py-16 md:py-20">
         <div className="container-luxury">
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+              {Array.from({ length: PAGE_SIZE }).map((_, i) => <ProductSkeleton key={i} />)}
+            </div>
+          ) : products.length === 0 ? (
             <div className="text-center py-24">
               <p className="font-serif font-light text-3xl text-charcoal-400 mb-4">No pieces found</p>
-              <button onClick={() => setActiveCategory('All')} className="text-xs tracking-luxury uppercase font-body text-charcoal-500 hover:text-charcoal-900 border-b border-charcoal-300 transition-colors">
+              <button
+                onClick={() => handleCategoryChange('')}
+                className="text-xs tracking-luxury uppercase font-body text-charcoal-500 hover:text-charcoal-900 border-b border-charcoal-300 transition-colors"
+              >
                 View all pieces
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-              {filtered.map((product, i) => (
+              {products.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} />
               ))}
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="mt-16 flex justify-center">
+              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
         </div>

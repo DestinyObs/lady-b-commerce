@@ -407,7 +407,7 @@ export default function HomePage() {
             </h2>
           </FadeUp>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 items-stretch">
             {[
               {
                 name: 'Amara N.',
@@ -425,14 +425,14 @@ export default function HomePage() {
                 quote: 'I own pieces from designer houses and nothing compares to the feeling of wearing something truly made by hand. Lady B is in a category entirely of her own.',
               },
             ].map((r, i) => (
-              <FadeUp key={r.name} delay={i * 0.12}>
-                <div className="border border-ivory/8 p-8 md:p-10 hover:border-gold-champagne/30 transition-colors duration-500">
+              <FadeUp key={r.name} delay={i * 0.12} className="h-full">
+                <div className="border border-ivory/8 p-8 md:p-10 hover:border-gold-champagne/30 transition-colors duration-500 flex flex-col h-full">
                   <div className="flex gap-0.5 mb-6">
                     {Array.from({ length: 5 }).map((_, s) => (
                       <span key={s} className="text-gold-champagne text-sm">★</span>
                     ))}
                   </div>
-                  <blockquote className="font-serif font-light text-lg text-ivory/85 leading-relaxed mb-8">
+                  <blockquote className="font-serif font-light text-lg text-ivory/85 leading-relaxed flex-1 mb-8">
                     "{r.quote}"
                   </blockquote>
                   <footer>

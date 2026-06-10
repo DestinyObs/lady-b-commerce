@@ -76,6 +76,14 @@ export function Footer() {
             <p className="text-ivory/50 text-sm font-body font-light leading-relaxed mb-6">
               Luxury handcrafted accessories for women of distinction. Made by hand, one bead at a time.
             </p>
+            <div className="space-y-2 mb-6">
+              <a href={`tel:${config.brand.phone}`} className="block text-sm text-ivory/50 hover:text-ivory transition-colors font-body font-light">
+                {config.brand.phone}
+              </a>
+              <a href={`mailto:${config.brand.email}`} className="block text-sm text-ivory/50 hover:text-ivory transition-colors font-body font-light break-all">
+                {config.brand.email}
+              </a>
+            </div>
             <div className="flex gap-4">
               <a href={config.brand.social.instagram} target="_blank" rel="noopener noreferrer" className="text-ivory/40 hover:text-gold-champagne transition-colors" aria-label="Instagram">
                 <Instagram className="h-5 w-5" />
@@ -117,10 +125,6 @@ export function Footer() {
                 </li>
               ))}
             </ul>
-            <div className="mt-8 space-y-2">
-              <a href={`tel:${config.brand.phone}`} className="block text-sm text-ivory/50 hover:text-ivory transition-colors font-body font-light">{config.brand.phone}</a>
-              <a href={`mailto:${config.brand.email}`} className="block text-sm text-ivory/50 hover:text-ivory transition-colors font-body font-light break-all">{config.brand.email}</a>
-            </div>
           </div>
         </div>
       </div>

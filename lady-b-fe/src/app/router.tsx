@@ -54,6 +54,8 @@ const AccountOrderDetail = lazy(() => import('../pages/account/AccountOrderDetai
 const AccountProfile = lazy(() => import('../pages/account/AccountProfile'));
 const AccountAddresses = lazy(() => import('../pages/account/AccountAddresses'));
 const AccountCustomOrders = lazy(() => import('../pages/account/AccountCustomOrders'));
+const AccountSettings = lazy(() => import('../pages/account/AccountSettings'));
+const AccountBilling = lazy(() => import('../pages/account/AccountBilling'));
 
 // Legal
 const ReturnPolicyPage = lazy(() => import('../pages/legal/ReturnPolicyPage'));
@@ -138,6 +140,8 @@ const router = createBrowserRouter([
           { path: 'profile', element: <SuspenseWrapper><AccountProfile /></SuspenseWrapper> },
           { path: 'addresses', element: <SuspenseWrapper><AccountAddresses /></SuspenseWrapper> },
           { path: 'custom-orders', element: <SuspenseWrapper><AccountCustomOrders /></SuspenseWrapper> },
+          { path: 'settings', element: <SuspenseWrapper><AccountSettings /></SuspenseWrapper> },
+          { path: 'billing', element: <SuspenseWrapper><AccountBilling /></SuspenseWrapper> },
         ],
       },
 

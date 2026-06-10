@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Heart, ShoppingBag, ArrowLeft, ChevronRight, Star, Truck, RotateCcw, Shield } from 'lucide-react';
+import { Heart, ShoppingBag, ChevronRight, Star, Truck, RotateCcw, Shield, ChevronLeft } from 'lucide-react';
+import useEmblaCarousel from 'embla-carousel-react';
 import toast from 'react-hot-toast';
 import { api } from '../../lib/axios';
 import { formatCurrency, getImageUrl } from '../../lib/utils';
@@ -13,10 +14,25 @@ import { Skeleton } from '../../components/ui/Skeleton';
 
 export default function ProductPage() {
   const { productSlug } = useParams<{ productSlug: string }>();
-  const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const { addItem, openCart } = useCartStore();
+
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    emblaApi.on('select', onSelect);
+    onSelect();
+  }, [emblaApi, onSelect]);
+
+  const scrollTo = useCallback((i: number) => emblaApi?.scrollTo(i), [emblaApi]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['product', productSlug],
@@ -41,12 +57,7 @@ export default function ProductPage() {
       variantId: selectedVariant,
       quantity,
       price: variant?.price ?? product.price,
-      product: {
-        id: product.id,
-        name: product.name,
-        slug: product.slug,
-        images: product.images,
-      },
+      product: { id: product.id, name: product.name, slug: product.slug, images: product.images },
       variant: variant ?? null,
     });
     toast.success('Added to your bag');
@@ -63,8 +74,7 @@ export default function ProductPage() {
     </div>
   );
 
-  const primaryImage = product.images?.[0]?.url;
-  const currentImage = product.images?.[selectedImage]?.url || primaryImage;
+  const images: Array<{ id: string; url: string; altText?: string }> = product.images || [];
   const activeVariant = product.variants?.find((v: { id: string }) => v.id === selectedVariant);
   const displayPrice = activeVariant?.price ?? product.price;
   const compareAtPrice = activeVariant?.compareAtPrice ?? product.compareAtPrice;
@@ -88,43 +98,85 @@ export default function ProductPage() {
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-20 pb-24">
-          {/* ─── Image gallery ─────────────────────────────────────────── */}
+          {/* ─── Image gallery (Embla carousel) ───────────────────────── */}
           <div className="space-y-4">
-            <motion.div
-              className="aspect-[4/5] bg-charcoal-50 overflow-hidden relative"
-              layoutId={`product-image-${product.id}`}
-            >
-              {currentImage ? (
-                <img
-                  src={getImageUrl(currentImage, 900)}
-                  alt={product.images?.[selectedImage]?.altText || product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <p className="text-charcoal-300 text-xs font-body tracking-wider uppercase">No image</p>
+            <div className="relative aspect-[4/5] bg-charcoal-50 overflow-hidden">
+              {/* Carousel */}
+              <div ref={emblaRef} className="w-full h-full overflow-hidden">
+                <div className="flex h-full">
+                  {images.length > 0 ? images.map((img, i) => (
+                    <div key={img.id} className="flex-shrink-0 w-full h-full relative">
+                      <img
+                        src={getImageUrl(img.url, 900)}
+                        alt={img.altText || product.name}
+                        className="w-full h-full object-cover"
+                        loading={i === 0 ? 'eager' : 'lazy'}
+                      />
+                    </div>
+                  )) : (
+                    <div className="flex-shrink-0 w-full h-full flex items-center justify-center">
+                      <p className="text-charcoal-300 text-xs font-body tracking-wider uppercase">No image</p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
+
+              {/* Badges */}
               {product.isNewArrival && (
-                <div className="absolute top-4 left-4">
+                <div className="absolute top-4 left-4 z-10">
                   <Badge variant="luxury">New</Badge>
                 </div>
               )}
               {product.isMadeToOrder && (
-                <div className="absolute top-4 right-4">
+                <div className="absolute top-4 right-4 z-10">
                   <Badge variant="outline">Made to Order</Badge>
                 </div>
               )}
-            </motion.div>
 
-            {product.images?.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto no-scrollbar">
-                {product.images.map((img: { id: string; url: string; altText?: string }, i: number) => (
+              {/* Prev / next buttons */}
+              {images.length > 1 && (
+                <>
+                  <button
+                    onClick={() => emblaApi?.scrollPrev()}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-ivory/90 hover:bg-ivory flex items-center justify-center transition-colors z-10"
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeft className="h-4 w-4 text-charcoal-700" />
+                  </button>
+                  <button
+                    onClick={() => emblaApi?.scrollNext()}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-ivory/90 hover:bg-ivory flex items-center justify-center transition-colors z-10"
+                    aria-label="Next image"
+                  >
+                    <ChevronRight className="h-4 w-4 text-charcoal-700" />
+                  </button>
+                </>
+              )}
+
+              {/* Dot indicators */}
+              {images.length > 1 && (
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-10">
+                  {images.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => scrollTo(i)}
+                      className={`rounded-full transition-all duration-200 ${selectedIndex === i ? 'w-5 h-1.5 bg-charcoal-900' : 'w-1.5 h-1.5 bg-charcoal-400'}`}
+                      aria-label={`Go to image ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Thumbnails */}
+            {images.length > 1 && (
+              <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+                {images.map((img, i) => (
                   <button
                     key={img.id}
-                    onClick={() => setSelectedImage(i)}
-                    className={`flex-shrink-0 w-20 h-20 bg-charcoal-50 overflow-hidden border-2 transition-colors ${
-                      selectedImage === i ? 'border-charcoal-900' : 'border-transparent'
+                    onClick={() => scrollTo(i)}
+                    className={`flex-shrink-0 w-[72px] h-[72px] bg-charcoal-50 overflow-hidden border-2 transition-all duration-200 ${
+                      selectedIndex === i ? 'border-charcoal-900 opacity-100' : 'border-transparent opacity-60 hover:opacity-100'
                     }`}
                     aria-label={`View image ${i + 1}`}
                   >
@@ -202,29 +254,19 @@ export default function ProductPage() {
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   className="px-4 py-3 text-charcoal-500 hover:text-charcoal-900 transition-colors"
                   aria-label="Decrease"
-                >
-                  −
-                </button>
+                >−</button>
                 <span className="w-12 text-center text-sm font-body">{quantity}</span>
                 <button
                   onClick={() => setQuantity((q) => q + 1)}
                   className="px-4 py-3 text-charcoal-500 hover:text-charcoal-900 transition-colors"
                   aria-label="Increase"
-                >
-                  +
-                </button>
+                >+</button>
               </div>
             </div>
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row gap-3 mb-8">
-              <Button
-                variant="primary"
-                size="lg"
-                className="flex-1"
-                onClick={handleAddToCart}
-                isLoading={false}
-              >
+              <Button variant="primary" size="lg" className="flex-1" onClick={handleAddToCart}>
                 <ShoppingBag className="h-4 w-4" />
                 Add to Bag
               </Button>
@@ -252,7 +294,7 @@ export default function ProductPage() {
 
             {/* Description */}
             {product.description && (
-              <div className="prose prose-sm prose-charcoal mb-6">
+              <div className="mb-6">
                 <h3 className="font-serif font-light text-lg text-charcoal-900 mb-3">Description</h3>
                 <p className="text-sm text-charcoal-600 font-body font-light leading-relaxed">{product.description}</p>
               </div>
@@ -293,7 +335,12 @@ function ProductPageSkeleton() {
   return (
     <div className="min-h-screen bg-ivory pt-32 container-luxury">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 pb-24">
-        <Skeleton className="aspect-[4/5] w-full" />
+        <div className="space-y-4">
+          <Skeleton className="aspect-[4/5] w-full" />
+          <div className="flex gap-2.5">
+            {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="w-[72px] h-[72px]" />)}
+          </div>
+        </div>
         <div className="space-y-4 py-4">
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-10 w-3/4" />
