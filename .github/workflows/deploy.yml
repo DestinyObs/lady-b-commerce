@@ -1,0 +1,79 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options: [production, staging]
+  push:
+    branches: [main]
+    tags: ['v*']
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    concurrency:
+      group: deploy-${{ github.event.inputs.environment || 'production' }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER }}
+          IMAGE_TAG: ${{ github.sha }}
+          DOCKER_REGISTRY: ghcr.io/${{ github.repository_owner }}
+        run: |
+          ssh $SSH_USER@$SSH_HOST << 'ENDSSH'
+          set -euo pipefail
+          cd /opt/lady-b-commerce
+
+          # Pull latest code
+          git pull origin main
+
+          # Pull new images
+          docker compose -f docker-compose.prod.yml pull
+
+          # Run DB migrations
+          docker compose -f docker-compose.prod.yml run --rm lady-b-be npx prisma migrate deploy
+
+          # Rolling restart
+          docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+          # Prune old images
+          docker image prune -f
+          ENDSSH
+
+      - name: Health check
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          sleep 30
+          curl -f "$APP_URL/api/health" && echo "✅ Health check passed" || (echo "❌ Health check failed" && exit 1)
+
+      - name: Notify on success
+        if: success()
+        run: echo "🚀 Lady B Commerce deployed successfully"
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "💥 Deployment failed"

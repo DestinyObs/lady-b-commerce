@@ -1,0 +1,80 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environment variables — NEVER commit these
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Cache
+.cache/
+.parcel-cache/
+.vite/
+.turbo/
+
+# Prisma
+lady-b-be/prisma/migrations/*.sql.bak
+lady-b-be/node_modules/.prisma/
+
+# Secrets / Keys
+*.pem
+*.key
+*.cert
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Docker
+.docker/
+
+# Uploads (local dev)
+uploads/
+public/uploads/
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+playwright-report/
+test-results/

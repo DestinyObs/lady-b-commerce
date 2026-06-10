@@ -1,0 +1,101 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'lady-b-be/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lady-b-be/**'
+
+defaults:
+  run:
+    working-directory: lady-b-be
+
+jobs:
+  ci:
+    name: Lint, Type-check, Validate & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ladybcommerce_test
+          POSTGRES_USER: ladyb_test
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: lady-b-be/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Run migrations (test DB)
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://ladyb_test:test_password@localhost:5432/ladybcommerce_test
+
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://ladyb_test:test_password@localhost:5432/ladybcommerce_test
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: test_access_secret_minimum_32_characters_long
+          JWT_REFRESH_SECRET: test_refresh_secret_minimum_32_characters_long
+          JWT_ACCESS_EXPIRES_IN: 15m
+          JWT_REFRESH_EXPIRES_IN: 7d
+          STRIPE_SECRET_KEY: sk_test_dummy
+          STRIPE_WEBHOOK_SECRET: whsec_dummy
+          PAYPAL_CLIENT_ID: dummy
+          PAYPAL_CLIENT_SECRET: dummy
+          CLOUDINARY_CLOUD_NAME: dummy
+          CLOUDINARY_API_KEY: dummy
+          CLOUDINARY_API_SECRET: dummy
+          SMTP_HOST: smtp.example.com
+          SMTP_PORT: 587
+          SMTP_USER: test@example.com
+          SMTP_PASS: dummy
+          CORS_ORIGIN: http://localhost:3000
+
+      - name: Build
+        run: npm run build

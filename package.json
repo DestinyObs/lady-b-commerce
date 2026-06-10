@@ -1,0 +1,52 @@
+{
+  "name": "lady-b-commerce",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lady B Designs and Handcraft — Global Luxury Artisan Fashion Ecommerce Platform",
+  "workspaces": [
+    "lady-b-fe",
+    "lady-b-be"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:be\" \"npm run dev:fe\"",
+    "dev:fe": "npm --workspace lady-b-fe run dev",
+    "dev:be": "npm --workspace lady-b-be run dev",
+    "build": "npm --workspace lady-b-be run build && npm --workspace lady-b-fe run build",
+    "build:fe": "npm --workspace lady-b-fe run build",
+    "build:be": "npm --workspace lady-b-be run build",
+    "test": "npm --workspace lady-b-be run test && npm --workspace lady-b-fe run test",
+    "test:fe": "npm --workspace lady-b-fe run test",
+    "test:be": "npm --workspace lady-b-be run test",
+    "lint": "npm --workspace lady-b-fe run lint && npm --workspace lady-b-be run lint",
+    "typecheck": "npm --workspace lady-b-fe run typecheck && npm --workspace lady-b-be run typecheck",
+    "docker:dev": "docker compose up --build",
+    "docker:prod": "docker compose -f docker-compose.prod.yml up --build -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "db:migrate": "npm --workspace lady-b-be run db:migrate",
+    "db:seed": "npm --workspace lady-b-be run db:seed",
+    "db:studio": "npm --workspace lady-b-be run db:studio",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "@commitlint/cli": "^19.3.0",
+    "@commitlint/config-conventional": "^19.2.2",
+    "prettier": "^3.3.2"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

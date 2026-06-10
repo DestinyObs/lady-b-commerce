@@ -1,0 +1,16 @@
+import React, { useEffect } from 'react';
+import { Providers } from './providers';
+import { AppRouter } from './router';
+import { getOrCreateSessionId } from '../lib/utils';
+
+export default function App() {
+  useEffect(() => {
+    getOrCreateSessionId();
+  }, []);
+
+  return (
+    <Providers>
+      <AppRouter />
+    </Providers>
+  );
+}
