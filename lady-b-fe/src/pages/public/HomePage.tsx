@@ -123,7 +123,7 @@ export default function HomePage() {
 
         {/* Mobile full-bleed hero bg */}
         <div className="absolute inset-0 lg:hidden">
-          <img src={IMG.heroLeft} alt="" className="w-full h-full object-cover object-top" loading="eager" aria-hidden="true" />
+          <img src={IMG.heroRight} alt="" className="w-full h-full object-cover object-top" loading="eager" aria-hidden="true" />
           <div className="absolute inset-0 bg-gradient-to-b from-ivory/95 via-ivory/80 to-ivory/60" />
         </div>
       </section>

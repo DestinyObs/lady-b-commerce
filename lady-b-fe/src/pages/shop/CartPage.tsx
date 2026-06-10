@@ -61,10 +61,10 @@ export default function CartPage() {
                     className="flex gap-6 py-6 border-b border-charcoal-100"
                   >
                     <div className="w-24 h-24 bg-charcoal-50 overflow-hidden flex-shrink-0">
-                      {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
+                      {item.product.images?.[0]?.url && <img src={item.product.images[0].url} alt={item.product.name} className="w-full h-full object-cover" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-serif font-light text-xl text-charcoal-900 mb-1">{item.name}</h3>
+                      <h3 className="font-serif font-light text-xl text-charcoal-900 mb-1">{item.product.name}</h3>
                       <p className="text-charcoal-500 font-body text-sm mb-2">Qty: {item.quantity}</p>
                       <p className="text-charcoal-700 font-body">${(item.price * item.quantity).toLocaleString()}</p>
                     </div>
