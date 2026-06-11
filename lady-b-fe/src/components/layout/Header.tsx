@@ -43,6 +43,14 @@ export function Header() {
 
   const debouncedQuery = useDebounce(searchQuery.trim(), 320);
 
+  const { data: wishlistData } = useQuery({
+    queryKey: ['wishlist-count'],
+    queryFn: () => api.get('/account/wishlist?limit=1').then(r => r.data?.data?.total ?? 0),
+    enabled: isAuthenticated,
+    staleTime: 2 * 60 * 1000,
+  });
+  const wishlistCount: number = wishlistData ?? 0;
+
   const { data: searchResults } = useQuery({
     queryKey: ['header-search', debouncedQuery],
     queryFn: () =>
@@ -268,10 +276,15 @@ export function Header() {
 
             <Link
               to="/wishlist"
-              aria-label="Wishlist"
-              className="p-2.5 text-charcoal-600 hover:text-charcoal-900 transition-colors duration-200"
+              aria-label={`Wishlist${wishlistCount > 0 ? ` (${wishlistCount})` : ''}`}
+              className="p-2.5 text-charcoal-600 hover:text-charcoal-900 transition-colors duration-200 relative"
             >
               <Heart className="h-[18px] w-[18px]" />
+              {wishlistCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center bg-charcoal-900 text-ivory rounded-full text-2xs font-body font-medium">
+                  {wishlistCount > 9 ? '9+' : wishlistCount}
+                </span>
+              )}
             </Link>
 
             <Link

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -47,6 +47,30 @@ function PostSkeleton() {
   );
 }
 
+function ReadingProgressBar() {
+  const [progress, setProgress] = useState(0);
+  const onScroll = useCallback(() => {
+    const el = document.documentElement;
+    const scrolled = el.scrollTop;
+    const total = el.scrollHeight - el.clientHeight;
+    setProgress(total > 0 ? Math.min(100, (scrolled / total) * 100) : 0);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [onScroll]);
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-charcoal-100 pointer-events-none" aria-hidden="true">
+      <div
+        className="h-full bg-gold-champagne transition-all duration-100 ease-linear"
+        style={{ width: `${progress}%` }}
+      />
+    </div>
+  );
+}
+
 export default function JournalPostPage() {
   const { slug } = useParams<{ slug: string }>();
   const [copied, setCopied] = useState(false);
@@ -86,6 +110,7 @@ export default function JournalPostPage() {
 
   return (
     <div className="min-h-screen bg-ivory">
+      <ReadingProgressBar />
       {/* Hero */}
       <div className="pt-36 md:pt-44 pb-12 bg-charcoal-50">
         <div className="container-luxury max-w-3xl">

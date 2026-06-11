@@ -4,7 +4,7 @@ import { AnnouncementBar } from './AnnouncementBar';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { CartDrawer } from '../cart/CartDrawer';
-
+import { ScrollRestorer } from '../shared/ScrollRestorer';
 import { useUiStore } from '../../store/ui.store';
 
 export function MainLayout() {
@@ -12,6 +12,7 @@ export function MainLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-ivory">
+      <ScrollRestorer />
       {/* Skip to content — accessibility */}
       <a
         href="#main-content"
