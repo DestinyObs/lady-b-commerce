@@ -1,0 +1,49 @@
+# Local dev infrastructure only — Postgres + Redis
+# Run: docker compose -f docker-compose.infra.yml up -d
+# Then: npm run dev   (starts BE + FE with hot reload on host)
+
+networks:
+  lady-b-network:
+    driver: bridge
+
+volumes:
+  lady-b-postgres-data:
+  lady-b-redis-data:
+
+services:
+  lady-b-postgres:
+    image: postgres:16-alpine
+    container_name: lady-b-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ladybcommerce
+      POSTGRES_USER: ladyb
+      POSTGRES_PASSWORD: ladyb_dev_password
+    ports:
+      - '5433:5432'
+    volumes:
+      - lady-b-postgres-data:/var/lib/postgresql/data
+    networks:
+      - lady-b-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ladyb -d ladybcommerce']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  lady-b-redis:
+    image: redis:7-alpine
+    container_name: lady-b-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ladyb_redis_dev
+    ports:
+      - '6379:6379'
+    volumes:
+      - lady-b-redis-data:/data
+    networks:
+      - lady-b-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--no-auth-warning', '-a', 'ladyb_redis_dev', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5

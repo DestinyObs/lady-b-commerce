@@ -8,7 +8,12 @@
     "lady-b-be"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:be\" \"npm run dev:fe\"",
+    "start": "docker compose -f docker-compose.infra.yml up -d && npm run dev",
+    "stop": "docker compose -f docker-compose.infra.yml down",
+    "infra:up": "docker compose -f docker-compose.infra.yml up -d",
+    "infra:down": "docker compose -f docker-compose.infra.yml down",
+    "infra:logs": "docker compose -f docker-compose.infra.yml logs -f",
+    "dev": "concurrently --names \"BE,FE\" --prefix-colors \"cyan,magenta\" \"npm run dev:be\" \"npm run dev:fe\"",
     "dev:fe": "npm --workspace lady-b-fe run dev",
     "dev:be": "npm --workspace lady-b-be run dev",
     "build": "npm --workspace lady-b-be run build && npm --workspace lady-b-fe run build",
