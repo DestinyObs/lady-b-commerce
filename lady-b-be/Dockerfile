@@ -1,11 +1,11 @@
 FROM node:20-alpine AS base
 WORKDIR /app
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl openssl
 
 # ─── Development stage ───────────────────────────────────────────────────────
 FROM base AS development
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 COPY . .
 RUN npx prisma generate
 EXPOSE 4000
