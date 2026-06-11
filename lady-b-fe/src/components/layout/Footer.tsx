@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Instagram, Facebook } from 'lucide-react';
+import { useMutation } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { api } from '../../lib/axios';
 import { config } from '../../app/config';
 
 const SHOP_LINKS = [
@@ -34,31 +37,58 @@ const LEGAL_LINKS = [
 ];
 
 export function Footer() {
+  const [email, setEmail] = useState('');
+
+  const newsletterMutation = useMutation({
+    mutationFn: (address: string) =>
+      api.post('/newsletter/subscribe', { email: address }).then((r) => r.data),
+    onSuccess: () => {
+      toast.success('You\'re on the list. Welcome to the inner circle.');
+      setEmail('');
+    },
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      toast.error(error.response?.data?.message || 'Could not subscribe. Please try again.');
+    },
+  });
+
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    newsletterMutation.mutate(email.trim());
+  };
+
   return (
     <footer className="bg-charcoal-900 text-ivory" role="contentinfo">
       {/* Newsletter band */}
       <div className="border-b border-ivory/10">
-        <div className="container-luxury py-16 md:py-20">
+        <div className="container-luxury py-14 md:py-20">
           <div className="max-w-xl">
             <span className="section-label">Private Access</span>
-            <h2 className="font-serif font-light text-3xl md:text-4xl text-ivory mt-3 mb-4">
+            <h2 className="font-serif font-light text-2xl md:text-4xl text-ivory mt-3 mb-4">
               Join the Inner Circle
             </h2>
             <p className="text-ivory/60 text-sm font-body font-light leading-relaxed mb-8">
               Be first to know. New collections, bespoke availability, exclusive events, and stories from the atelier — for women who understand that true luxury is made by hand.
             </p>
-            <form className="flex flex-col sm:flex-row gap-3" onSubmit={(e) => e.preventDefault()}>
+            <form className="flex flex-col sm:flex-row gap-3" onSubmit={handleSubscribe} noValidate>
               <input
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="Your email address"
                 className="flex-1 bg-transparent border border-ivory/20 text-ivory placeholder:text-ivory/30 px-5 py-4 text-sm font-body focus:outline-none focus:border-gold-champagne transition-colors"
                 aria-label="Email for newsletter"
+                disabled={newsletterMutation.isPending}
               />
               <button
                 type="submit"
-                className="border border-ivory/40 text-ivory px-8 py-4 text-xs tracking-luxury uppercase font-body font-medium hover:bg-ivory hover:text-charcoal-900 transition-all duration-300 flex-shrink-0"
+                disabled={newsletterMutation.isPending}
+                className="border border-ivory/40 text-ivory px-6 md:px-8 py-4 text-xs tracking-luxury uppercase font-body font-medium hover:bg-ivory hover:text-charcoal-900 transition-all duration-300 flex-shrink-0 disabled:opacity-50"
               >
-                Subscribe
+                {newsletterMutation.isPending ? '…' : 'Subscribe'}
               </button>
             </form>
           </div>
@@ -66,7 +96,7 @@ export function Footer() {
       </div>
 
       {/* Main footer */}
-      <div className="container-luxury py-16 md:py-20">
+      <div className="container-luxury py-14 md:py-20">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 lg:gap-16">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
@@ -135,11 +165,11 @@ export function Footer() {
 
       {/* Bottom bar */}
       <div className="border-t border-ivory/10">
-        <div className="container-luxury py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-ivory/30 text-xs font-body">
+        <div className="container-luxury py-5 md:py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-ivory/30 text-xs font-body text-center sm:text-left">
             © {new Date().getFullYear()} Lady B Designs and Handcraft. All rights reserved.
           </p>
-          <div className="flex items-center gap-5">
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-5">
             {LEGAL_LINKS.map((link) => (
               <Link key={link.href} to={link.href} className="text-xs text-ivory/30 hover:text-ivory/60 transition-colors font-body">
                 {link.label}

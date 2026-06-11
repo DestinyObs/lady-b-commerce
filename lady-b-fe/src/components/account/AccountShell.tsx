@@ -28,12 +28,12 @@ export function AccountShell({ children, title, breadcrumb }: AccountShellProps)
   const { user, logout } = useAuthStore();
 
   return (
-    <div className="min-h-screen bg-ivory pt-36 md:pt-44 pb-24">
+    <div className="min-h-screen bg-ivory pt-28 md:pt-36 lg:pt-44 pb-16 md:pb-24">
       <div className="container-luxury">
 
         {/* Page heading */}
         {title && (
-          <div className="mb-8 md:mb-12">
+          <div className="mb-6 md:mb-10">
             <p className="text-xs text-charcoal-400 font-body tracking-wide uppercase mb-1">
               <Link to="/account" className="hover:text-charcoal-700 transition-colors">My Account</Link>
               {breadcrumb && (
@@ -43,15 +43,57 @@ export function AccountShell({ children, title, breadcrumb }: AccountShellProps)
                 </>
               )}
             </p>
-            <h1 className="font-serif font-light text-4xl md:text-5xl text-charcoal-900">{title}</h1>
+            <h1 className="font-serif font-light text-3xl md:text-5xl text-charcoal-900">{title}</h1>
           </div>
         )}
 
+        {/* ── Mobile: compact horizontal nav strip ── */}
+        <div className="lg:hidden mb-6">
+          {user && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-charcoal-50 mb-3">
+              <Avatar name={`${user.firstName} ${user.lastName}`} src={user.avatarUrl} size="sm" />
+              <div className="min-w-0">
+                <p className="font-body font-medium text-charcoal-900 text-sm truncate">{user.firstName} {user.lastName}</p>
+                <p className="text-xs text-charcoal-400 font-body truncate">{user.email}</p>
+              </div>
+            </div>
+          )}
+          <nav aria-label="Account navigation" className="overflow-x-auto -mx-4 px-4">
+            <div className="flex gap-1.5 min-w-max pb-1">
+              {NAV.map(({ label, href, icon: Icon, end }) => (
+                <NavLink
+                  key={href}
+                  to={href}
+                  end={end}
+                  className={({ isActive }) =>
+                    cn(
+                      'flex items-center gap-1.5 px-3 py-2 text-xs font-body whitespace-nowrap transition-colors border flex-shrink-0',
+                      isActive
+                        ? 'bg-charcoal-900 border-charcoal-900 text-ivory'
+                        : 'border-charcoal-200 text-charcoal-600 hover:border-charcoal-500 hover:text-charcoal-900',
+                    )
+                  }
+                >
+                  <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+                  {label}
+                </NavLink>
+              ))}
+              <button
+                onClick={logout}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-body border border-charcoal-200 text-charcoal-400 hover:text-charcoal-900 hover:border-charcoal-500 whitespace-nowrap transition-colors flex-shrink-0"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sign Out
+              </button>
+            </div>
+          </nav>
+        </div>
+
+        {/* ── Desktop: sidebar + content grid ── */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12">
 
-          {/* Sidebar */}
-          <aside className="lg:col-span-1">
-            {/* User card */}
+          {/* Desktop sidebar */}
+          <aside className="hidden lg:block lg:col-span-1">
             {user && (
               <div className="flex items-center gap-3 p-4 bg-charcoal-50 mb-6">
                 <Avatar name={`${user.firstName} ${user.lastName}`} src={user.avatarUrl} size="md" />
@@ -64,7 +106,6 @@ export function AccountShell({ children, title, breadcrumb }: AccountShellProps)
               </div>
             )}
 
-            {/* Navigation */}
             <nav aria-label="Account navigation">
               <ul className="space-y-0.5">
                 {NAV.map(({ label, href, icon: Icon, end }) => (

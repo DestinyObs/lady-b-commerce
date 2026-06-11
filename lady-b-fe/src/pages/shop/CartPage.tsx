@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, ArrowRight, Trash2, Minus, Plus, Tag, X, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useMutation } from '@tanstack/react-query';
 import { useCartStore } from '../../store/cart.store';
 import { formatCurrency } from '../../lib/utils';
+import { api } from '../../lib/axios';
 
 const FADE_UP = {
   hidden: { opacity: 0, y: 24 },
@@ -18,27 +20,24 @@ export default function CartPage() {
 
   const { items, removeItem, updateQuantity, couponCode, couponDiscount, setCoupon, removeCoupon } = useCartStore();
   const [couponInput, setCouponInput] = useState('');
-  const [couponLoading, setCouponLoading] = useState(false);
 
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const freeShippingProgress = Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100);
   const remaining = FREE_SHIPPING_THRESHOLD - subtotal;
   const total = Math.max(0, subtotal - couponDiscount);
 
-  const handleApplyCoupon = async () => {
-    if (!couponInput.trim()) return;
-    setCouponLoading(true);
-    await new Promise(r => setTimeout(r, 600));
-    const mockCoupons: Record<string, number> = { 'LADY10': subtotal * 0.1, 'BEADS20': subtotal * 0.2 };
-    const discount = mockCoupons[couponInput.toUpperCase()];
-    if (discount) {
-      setCoupon(couponInput.toUpperCase(), discount);
-      toast.success(`Coupon applied — ${couponInput.toUpperCase()}!`);
-    } else {
-      toast.error('Invalid coupon code');
-    }
-    setCouponLoading(false);
-  };
+  const couponMutation = useMutation({
+    mutationFn: (code: string) =>
+      api.post('/coupons/validate', { code, subtotal }).then((r) => r.data.data),
+    onSuccess: (data: { code: string; discountAmount: number }) => {
+      setCoupon(data.code, data.discountAmount);
+      toast.success(`Coupon applied — ${data.code}`);
+      setCouponInput('');
+    },
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      toast.error(error.response?.data?.message || 'Invalid or expired coupon code');
+    },
+  });
 
   return (
     <div className="min-h-screen bg-ivory">
@@ -189,17 +188,17 @@ export default function CartPage() {
                         <input
                           type="text"
                           value={couponInput}
-                          onChange={e => setCouponInput(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleApplyCoupon()}
+                          onChange={e => setCouponInput(e.target.value.toUpperCase())}
+                          onKeyDown={e => e.key === 'Enter' && couponInput.trim() && couponMutation.mutate(couponInput.trim())}
                           placeholder="Coupon code"
                           className="input-luxury flex-1 text-sm py-2.5"
                         />
                         <button
-                          onClick={handleApplyCoupon}
-                          disabled={couponLoading || !couponInput.trim()}
+                          onClick={() => couponInput.trim() && couponMutation.mutate(couponInput.trim())}
+                          disabled={couponMutation.isPending || !couponInput.trim()}
                           className="px-4 bg-charcoal-900 text-ivory text-xs tracking-luxury uppercase font-body hover:bg-charcoal-800 transition-colors disabled:opacity-50"
                         >
-                          {couponLoading ? '…' : 'Apply'}
+                          {couponMutation.isPending ? '…' : 'Apply'}
                         </button>
                       </div>
                     )}
