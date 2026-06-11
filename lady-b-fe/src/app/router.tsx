@@ -86,6 +86,9 @@ const AdminPress = lazy(() => import('../pages/admin/AdminPress'));
 const AdminInventory = lazy(() => import('../pages/admin/AdminInventory'));
 const AdminSettings = lazy(() => import('../pages/admin/AdminSettings'));
 const AdminAuditLogs = lazy(() => import('../pages/admin/AdminAuditLogs'));
+const AdminJournal = lazy(() => import('../pages/admin/AdminJournal'));
+const AdminGiftCards = lazy(() => import('../pages/admin/AdminGiftCards'));
+const AdminFaqs = lazy(() => import('../pages/admin/AdminFaqs'));
 
 // Error
 const NotFoundPage = lazy(() => import('../pages/public/NotFoundPage'));
@@ -187,6 +190,9 @@ const router = createBrowserRouter([
       { path: 'wholesale', element: <SuspenseWrapper><AdminWholesale /></SuspenseWrapper> },
       { path: 'press', element: <SuspenseWrapper><AdminPress /></SuspenseWrapper> },
       { path: 'inventory', element: <SuspenseWrapper><AdminInventory /></SuspenseWrapper> },
+      { path: 'journal', element: <SuspenseWrapper><AdminJournal /></SuspenseWrapper> },
+      { path: 'gift-cards', element: <SuspenseWrapper><AdminGiftCards /></SuspenseWrapper> },
+      { path: 'faq', element: <SuspenseWrapper><AdminFaqs /></SuspenseWrapper> },
       { path: 'settings', element: <SuspenseWrapper><AdminSettings /></SuspenseWrapper> },
       { path: 'audit-logs', element: <SuspenseWrapper><AdminAuditLogs /></SuspenseWrapper> },
     ],

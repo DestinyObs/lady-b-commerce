@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Package, ShoppingBag, Palette, Users, Tag,
   Star, Mail, MessageSquare, Building2, Newspaper, Archive,
   Settings, ClipboardList, ChevronLeft, Menu, LogOut, X,
+  BookOpen, Gift, HelpCircle,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/auth.store';
@@ -21,6 +22,9 @@ const NAV_ITEMS = [
   { label: 'Contact', href: '/admin/contact-messages', icon: MessageSquare },
   { label: 'Wholesale', href: '/admin/wholesale', icon: Building2 },
   { label: 'Press', href: '/admin/press', icon: Newspaper },
+  { label: 'Gift Cards', href: '/admin/gift-cards', icon: Gift },
+  { label: 'Journal CMS', href: '/admin/journal', icon: BookOpen },
+  { label: 'FAQs', href: '/admin/faq', icon: HelpCircle },
   { label: 'Inventory', href: '/admin/inventory', icon: Archive },
   { label: 'Audit Logs', href: '/admin/audit-logs', icon: ClipboardList },
   { label: 'Settings', href: '/admin/settings', icon: Settings },

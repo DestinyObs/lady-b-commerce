@@ -1,107 +1,48 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../lib/axios';
+import { Skeleton } from '../../components/ui/Skeleton';
 
 const FADE_UP = {
   hidden: { opacity: 0, y: 24 },
   visible: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.6, delay: i * 0.1, ease: [0.25, 1, 0.5, 1] } }),
 };
 
-const FAQS = [
-  {
-    category: 'Orders & Shopping',
-    items: [
-      {
-        q: 'How do I place an order?',
-        a: 'Browse our collections, select your piece, choose any available options, and add to your bag. Checkout accepts credit/debit cards, PayPal, and bank transfer. You\'ll receive an order confirmation email immediately.',
-      },
-      {
-        q: 'Can I modify or cancel my order?',
-        a: 'Orders can be modified or cancelled within 24 hours of placement. After that, we may have already begun preparation. Please contact us at Adebiyiblessing55@gmail.com or +1 (317) 507-4966 as soon as possible.',
-      },
-      {
-        q: 'Do you offer gift packaging?',
-        a: 'All Lady B pieces arrive in our signature keepsake box with a dust bag and tissue — this is our standard packaging. We can add a handwritten gift note at no additional charge.',
-      },
-    ],
-  },
-  {
-    category: 'Shipping & Delivery',
-    items: [
-      {
-        q: 'How long does shipping take?',
-        a: 'Ready-to-ship pieces are dispatched within 3–5 business days. US domestic shipping takes 3–7 business days. International orders typically arrive in 7–14 business days, depending on destination.',
-      },
-      {
-        q: 'Do you offer free shipping?',
-        a: 'Yes — we offer complimentary standard shipping on all US orders over $250. International orders qualify for free shipping on purchases over $400.',
-      },
-      {
-        q: 'Do you ship internationally?',
-        a: 'We ship worldwide. International shipping rates and times vary by destination. All international orders are dispatched via tracked courier. Import duties and taxes are the responsibility of the recipient.',
-      },
-      {
-        q: 'Can I track my order?',
-        a: 'Yes. Once your order is dispatched, you\'ll receive a tracking number by email. You can also track your order through your account dashboard.',
-      },
-    ],
-  },
-  {
-    category: 'Returns & Refunds',
-    items: [
-      {
-        q: 'What is your returns policy?',
-        a: 'We accept returns on standard (non-bespoke) items within 7 days of delivery, provided they are unused and in original condition. Please contact us to initiate a return.',
-      },
-      {
-        q: 'Can I return a bespoke piece?',
-        a: 'Bespoke and custom-made pieces cannot be returned, as they are made specifically for you. However, if there is a fault or defect, we will remake or repair the piece at no charge.',
-      },
-      {
-        q: 'How long do refunds take?',
-        a: 'Refunds are processed within 5–7 business days of receiving the returned item. You\'ll receive an email confirmation once your refund has been issued.',
-      },
-    ],
-  },
-  {
-    category: 'Bespoke & Custom Orders',
-    items: [
-      {
-        q: 'How do I start a bespoke commission?',
-        a: 'Contact us through the bespoke page or send us a message describing your vision, timeline, and budget. We\'ll arrange a consultation to discuss your commission in detail.',
-      },
-      {
-        q: 'How long does a custom piece take?',
-        a: 'Most commissions take 3–6 weeks from design approval to delivery. We\'ll confirm your exact timeline during the consultation. Rush commissions may be possible — please enquire.',
-      },
-      {
-        q: 'What is the minimum spend for a custom order?',
-        a: 'Our minimum commission is $120 for necklaces and $280 for bags. Pricing depends on complexity, materials, and size. A full quote is provided after consultation.',
-      },
-    ],
-  },
-  {
-    category: 'Product Care',
-    items: [
-      {
-        q: 'How do I care for my beaded piece?',
-        a: 'Store in the provided dust bag away from direct sunlight and moisture. Clean gently with a dry, soft cloth. Avoid contact with perfume, water, and chemicals. With proper care, your piece will last a lifetime.',
-      },
-      {
-        q: 'Can a piece be repaired if damaged?',
-        a: 'Yes. We offer repair services for Lady B pieces. Contact us with photos of the damage and we\'ll assess the repair. Charges vary based on the extent of work required.',
-      },
-    ],
-  },
+interface FaqItem {
+  id?: string;
+  question: string;
+  answer: string;
+  category: string;
+  sortOrder?: number;
+}
+
+const STATIC_FAQS: FaqItem[] = [
+  { category: 'Orders & Shopping', question: 'How do I place an order?', answer: "Browse our collections, select your piece, choose any available options, and add to your bag. Checkout accepts credit/debit cards and bank transfer. You'll receive an order confirmation email immediately." },
+  { category: 'Orders & Shopping', question: 'Can I modify or cancel my order?', answer: "Orders can be modified or cancelled within 24 hours of placement. Please contact us at Adebiyiblessing55@gmail.com or +1 (317) 507-4966 as soon as possible." },
+  { category: 'Orders & Shopping', question: 'Do you offer gift packaging?', answer: "All Lady B pieces arrive in our signature keepsake box with a dust bag and tissue. We can add a handwritten gift note at no additional charge." },
+  { category: 'Shipping & Delivery', question: 'How long does shipping take?', answer: "Ready-to-ship pieces are dispatched within 3–5 business days. US domestic shipping takes 3–7 business days. International orders typically arrive in 7–14 business days." },
+  { category: 'Shipping & Delivery', question: 'Do you offer free shipping?', answer: "Yes — complimentary standard shipping on all US orders over $250. International orders qualify for free shipping on purchases over $400." },
+  { category: 'Shipping & Delivery', question: 'Do you ship internationally?', answer: "We ship worldwide. All international orders are dispatched via tracked courier. Import duties and taxes are the responsibility of the recipient." },
+  { category: 'Shipping & Delivery', question: 'Can I track my order?', answer: "Yes. Once dispatched, you'll receive a tracking number by email. You can also track through your account dashboard." },
+  { category: 'Returns & Refunds', question: 'What is your returns policy?', answer: "We accept returns on standard (non-bespoke) items within 7 days of delivery, provided they are unused and in original condition." },
+  { category: 'Returns & Refunds', question: 'Can I return a bespoke piece?', answer: "Bespoke and custom-made pieces cannot be returned, as they are made specifically for you. If there is a fault, we will remake or repair at no charge." },
+  { category: 'Returns & Refunds', question: 'How long do refunds take?', answer: "Refunds are processed within 5–7 business days of receiving the returned item." },
+  { category: 'Bespoke & Custom Orders', question: 'How do I start a bespoke commission?', answer: "Contact us through the bespoke page or send us a message describing your vision, timeline, and budget. We'll arrange a consultation to discuss your commission." },
+  { category: 'Bespoke & Custom Orders', question: 'How long does a custom piece take?', answer: "Most commissions take 3–6 weeks from design approval to delivery. Rush commissions may be possible — please enquire." },
+  { category: 'Bespoke & Custom Orders', question: 'What is the minimum spend for a custom order?', answer: "Our minimum commission is $120 for necklaces and $280 for bags. Pricing depends on complexity, materials, and size." },
+  { category: 'Product Care', question: 'How do I care for my beaded piece?', answer: "Store in the provided dust bag away from direct sunlight and moisture. Clean gently with a dry, soft cloth. Avoid contact with perfume, water, and chemicals." },
+  { category: 'Product Care', question: 'Can a piece be repaired if damaged?', answer: "Yes. We offer repair services for Lady B pieces. Contact us with photos of the damage and we'll assess the repair." },
 ];
 
-function FaqItem({ q, a }: { q: string; a: string }) {
+function FaqAccordion({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="border-b border-charcoal-100 last:border-0">
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen((o) => !o)}
         className="w-full flex items-start justify-between gap-4 py-6 text-left"
         aria-expanded={open}
       >
@@ -128,8 +69,28 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   );
 }
 
+function groupByCategory(items: FaqItem[]): { category: string; items: FaqItem[] }[] {
+  const map = new Map<string, FaqItem[]>();
+  for (const item of items) {
+    const list = map.get(item.category) ?? [];
+    list.push(item);
+    map.set(item.category, list);
+  }
+  return Array.from(map.entries()).map(([category, items]) => ({ category, items }));
+}
+
 export default function FaqPage() {
   useEffect(() => { document.title = 'FAQ | Lady B Designs & Handcraft'; }, []);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['faqs-public'],
+    queryFn: () => api.get('/faq').then((r) => r.data),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const apiFaqs: FaqItem[] = data?.data ?? [];
+  const faqs = apiFaqs.length > 0 ? apiFaqs : STATIC_FAQS;
+  const sections = useMemo(() => groupByCategory(faqs), [faqs]);
 
   return (
     <div className="min-h-screen bg-ivory">
@@ -167,38 +128,62 @@ export default function FaqPage() {
             <div className="lg:col-span-1 hidden lg:block">
               <div className="sticky top-28">
                 <p className="text-charcoal-400 text-xs tracking-luxury uppercase font-body mb-5">Jump to</p>
-                <nav className="space-y-3">
-                  {FAQS.map((section) => (
-                    <a
-                      key={section.category}
-                      href={`#${section.category.toLowerCase().replace(/\s+/g, '-')}`}
-                      className="block text-charcoal-500 font-body text-sm hover:text-charcoal-900 transition-colors"
-                    >
-                      {section.category}
-                    </a>
-                  ))}
-                </nav>
+                {isLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Skeleton key={i} className="h-4 w-36" />
+                    ))}
+                  </div>
+                ) : (
+                  <nav className="space-y-3">
+                    {sections.map((section) => (
+                      <a
+                        key={section.category}
+                        href={`#${section.category.toLowerCase().replace(/\s+/g, '-')}`}
+                        className="block text-charcoal-500 font-body text-sm hover:text-charcoal-900 transition-colors"
+                      >
+                        {section.category}
+                      </a>
+                    ))}
+                  </nav>
+                )}
               </div>
             </div>
 
             {/* FAQ sections */}
             <div className="lg:col-span-3 space-y-16">
-              {FAQS.map((section, i) => (
-                <motion.div
-                  key={section.category}
-                  id={section.category.toLowerCase().replace(/\s+/g, '-')}
-                  initial="hidden" whileInView="visible" viewport={{ once: true }} custom={i * 0.05} variants={FADE_UP}
-                >
-                  <h2 className="font-serif font-light text-2xl text-charcoal-900 mb-6 pb-4 border-b border-charcoal-200">
-                    {section.category}
-                  </h2>
-                  <div>
-                    {section.items.map((item) => (
-                      <FaqItem key={item.q} q={item.q} a={item.a} />
-                    ))}
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, si) => (
+                  <div key={si}>
+                    <Skeleton className="h-7 w-48 mb-6" />
+                    <div className="space-y-4">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="border-b border-charcoal-100 pb-4">
+                          <Skeleton className="h-5 w-full mb-2" />
+                          <Skeleton className="h-4 w-3/4" />
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </motion.div>
-              ))}
+                ))
+              ) : (
+                sections.map((section, i) => (
+                  <motion.div
+                    key={section.category}
+                    id={section.category.toLowerCase().replace(/\s+/g, '-')}
+                    initial="hidden" whileInView="visible" viewport={{ once: true }} custom={i * 0.05} variants={FADE_UP}
+                  >
+                    <h2 className="font-serif font-light text-2xl text-charcoal-900 mb-6 pb-4 border-b border-charcoal-200">
+                      {section.category}
+                    </h2>
+                    <div>
+                      {section.items.map((item) => (
+                        <FaqAccordion key={item.id ?? item.question} q={item.question} a={item.answer} />
+                      ))}
+                    </div>
+                  </motion.div>
+                ))
+              )}
             </div>
           </div>
         </div>
