@@ -12,6 +12,7 @@ import { api } from '../../lib/axios';
 import { formatCurrency, formatDate, getImageUrl } from '../../lib/utils';
 import { useCartStore } from '../../store/cart.store';
 import { useAuthStore } from '../../store/auth.store';
+import { mapBeCartItem } from '../../hooks/useCartSync';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -196,9 +197,10 @@ export default function ProductPage() {
   const [notifyDone, setNotifyDone] = useState(false);
   const [showSticky, setShowSticky] = useState(false);
   const [wishlisted, setWishlisted] = useState(false);
+  const [wishlistItemId, setWishlistItemId] = useState<string | null>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
 
-  const { addItem } = useCartStore();
+  const { setItems } = useCartStore();
   const { isAuthenticated } = useAuthStore();
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
@@ -238,25 +240,65 @@ export default function ProductPage() {
     if (product) document.title = product.seoTitle || `${product.name} | Lady B Designs`;
   }, [product]);
 
+  // Wishlist status check (authenticated only)
+  const { data: wishlistCheck } = useQuery({
+    queryKey: ['wishlist-check', product?.id],
+    queryFn: () => api.get(`/account/wishlist/check/${product!.id}`).then((r) => r.data.data),
+    enabled: !!product?.id && isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (wishlistCheck) {
+      setWishlisted(wishlistCheck.isWishlisted ?? false);
+      setWishlistItemId(wishlistCheck.itemId ?? null);
+    }
+  }, [wishlistCheck]);
+
+  const addCartItemMutation = useMutation({
+    mutationFn: () =>
+      api.post('/cart/items', {
+        productId: product!.id,
+        variantId: selectedVariant || undefined,
+        quantity,
+      }).then((r) => r.data.data),
+    onSuccess: (cartData) => {
+      if (cartData?.items) setItems(cartData.items.map(mapBeCartItem));
+      toast.success('Added to your bag');
+    },
+    onError: () => toast.error('Could not add to bag. Please try again.'),
+  });
+
   const handleAddToCart = () => {
     if (!product) return;
-    const variant = product.variants?.find((v: { id: string }) => v.id === selectedVariant);
-    addItem({
-      id: `${product.id}-${selectedVariant || 'default'}-${Date.now()}`,
-      productId: product.id,
-      variantId: selectedVariant,
-      quantity,
-      price: variant?.price ?? product.price,
-      product: { id: product.id, name: product.name, slug: product.slug, images: product.images },
-      variant: variant ?? null,
-    });
-    toast.success('Added to your bag');
+    addCartItemMutation.mutate();
   };
+
+  const toggleWishlistMutation = useMutation({
+    mutationFn: () => {
+      if (wishlisted && wishlistItemId) {
+        return api.delete(`/account/wishlist/${wishlistItemId}`).then((r) => r.data);
+      }
+      return api.post('/account/wishlist', { productId: product?.id }).then((r) => r.data);
+    },
+    onSuccess: (res) => {
+      if (wishlisted) {
+        setWishlisted(false);
+        setWishlistItemId(null);
+        toast('Removed from wishlist', { icon: '🤍' });
+      } else {
+        const itemId = res?.data?.id ?? null;
+        setWishlisted(true);
+        setWishlistItemId(itemId);
+        toast('Added to wishlist', { icon: '❤️' });
+      }
+    },
+    onError: () => toast.error('Could not update wishlist. Please try again.'),
+  });
 
   const toggleWishlist = () => {
     if (!isAuthenticated) { navigate('/login', { state: { from: location.pathname } }); return; }
-    setWishlisted(v => !v);
-    toast(wishlisted ? 'Removed from wishlist' : 'Added to wishlist', { icon: wishlisted ? '🤍' : '❤️' });
+    toggleWishlistMutation.mutate();
   };
 
   const notifyMutation = useMutation({
@@ -496,7 +538,7 @@ export default function ProductPage() {
                     Out of Stock
                   </div>
                 ) : (
-                  <Button variant="primary" size="lg" className="flex-1" onClick={handleAddToCart}>
+                  <Button variant="primary" size="lg" className="flex-1" onClick={handleAddToCart} isLoading={addCartItemMutation.isPending} disabled={addCartItemMutation.isPending}>
                     <ShoppingBag className="h-4 w-4" /> Add to Bag
                   </Button>
                 )}
@@ -648,7 +690,7 @@ export default function ProductPage() {
               <p className="text-xs text-charcoal-500 font-body truncate">{product.name}</p>
               <p className="text-sm font-serif text-charcoal-900">{formatCurrency(displayPrice)}</p>
             </div>
-            <Button variant="primary" className="flex-shrink-0 h-12 px-6" onClick={handleAddToCart}>
+            <Button variant="primary" className="flex-shrink-0 h-12 px-6" onClick={handleAddToCart} isLoading={addCartItemMutation.isPending} disabled={addCartItemMutation.isPending}>
               <ShoppingBag className="h-4 w-4" /> Add to Bag
             </Button>
           </motion.div>

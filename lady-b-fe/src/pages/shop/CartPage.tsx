@@ -21,6 +21,17 @@ export default function CartPage() {
   const { items, removeItem, updateQuantity, couponCode, couponDiscount, setCoupon, removeCoupon } = useCartStore();
   const [couponInput, setCouponInput] = useState('');
 
+  const handleRemove = (id: string) => {
+    removeItem(id); // optimistic
+    api.delete(`/cart/items/${id}`).catch(() => {});
+  };
+
+  const handleUpdateQty = (id: string, qty: number) => {
+    if (qty < 1) { handleRemove(id); return; }
+    updateQuantity(id, qty); // optimistic
+    api.patch(`/cart/items/${id}`, { quantity: qty }).catch(() => {});
+  };
+
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const freeShippingProgress = Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100);
   const remaining = FREE_SHIPPING_THRESHOLD - subtotal;
@@ -116,7 +127,7 @@ export default function CartPage() {
                             {item.product.name}
                           </Link>
                           <button
-                            onClick={() => removeItem(item.id)}
+                            onClick={() => handleRemove(item.id)}
                             className="text-charcoal-300 hover:text-red-500 transition-colors flex-shrink-0 p-1 -mt-1"
                             aria-label="Remove"
                           >
@@ -132,7 +143,7 @@ export default function CartPage() {
                           {/* Qty controls */}
                           <div className="inline-flex items-center border border-charcoal-200">
                             <button
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              onClick={() => handleUpdateQty(item.id, item.quantity - 1)}
                               className="px-3 py-2 text-charcoal-500 hover:text-charcoal-900 transition-colors"
                               aria-label="Decrease"
                             >
@@ -140,7 +151,7 @@ export default function CartPage() {
                             </button>
                             <span className="w-8 text-center text-sm font-body">{item.quantity}</span>
                             <button
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              onClick={() => handleUpdateQty(item.id, item.quantity + 1)}
                               className="px-3 py-2 text-charcoal-500 hover:text-charcoal-900 transition-colors"
                               aria-label="Increase"
                             >

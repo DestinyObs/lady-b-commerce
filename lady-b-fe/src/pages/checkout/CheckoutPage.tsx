@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -39,15 +39,49 @@ const addressSchema = z.object({
 
 type AddressFormData = z.infer<typeof addressSchema>;
 
-type ShippingMethodId = 'standard' | 'express' | 'overnight';
+type ShippingMethodId = string;
 
+// Raw shape returned by GET /api/checkout/shipping-methods
+interface ShippingMethodApi {
+  id: string;
+  name: string;
+  description: string;
+  price: number;         // cents from API
+  freeThreshold: number | null; // cents from API
+  estimatedDays: string;
+}
+
+// Normalized shape used internally (all prices in dollars)
 interface ShippingMethod {
-  id: ShippingMethodId;
+  id: string;
   name: string;
   description: string;
   days: string;
-  price: number;
+  priceDollars: number; // dollars
+  isFree: boolean;
   icon: React.ElementType;
+}
+
+const SHIPPING_ICON_MAP: Record<string, React.ElementType> = {
+  standard: Package,
+  express: Truck,
+  overnight: Zap,
+};
+
+function normalizeShippingMethods(apiMethods: ShippingMethodApi[], subtotalDollars: number): ShippingMethod[] {
+  return apiMethods.map((m) => {
+    const freeAt = m.freeThreshold !== null ? m.freeThreshold / 100 : null;
+    const isFree = freeAt !== null && subtotalDollars >= freeAt;
+    return {
+      id: m.id,
+      name: m.name,
+      description: m.description,
+      days: m.estimatedDays + ' business day' + (m.estimatedDays === '1' ? '' : 's'),
+      priceDollars: isFree ? 0 : m.price / 100,
+      isFree,
+      icon: SHIPPING_ICON_MAP[m.id] ?? Package,
+    };
+  });
 }
 
 const COUNTRIES = [
@@ -243,49 +277,24 @@ function AddressStep({
 // ─── Step 2: Shipping method ──────────────────────────────────────────────────
 
 function ShippingStep({
-  subtotal,
+  methods,
   selectedMethod,
   onSelect,
   onBack,
   onNext,
 }: {
-  subtotal: number;
+  methods: ShippingMethod[];
   selectedMethod: ShippingMethodId | null;
   onSelect: (id: ShippingMethodId) => void;
   onBack: () => void;
   onNext: () => void;
 }) {
-  const METHODS: ShippingMethod[] = [
-    {
-      id: 'standard',
-      name: 'Standard Delivery',
-      description: 'Tracked international shipping',
-      days: '5–7 business days',
-      price: subtotal >= 250 ? 0 : 1299,
-      icon: Package,
-    },
-    {
-      id: 'express',
-      name: 'Express Delivery',
-      description: 'Priority tracked shipping',
-      days: '2–3 business days',
-      price: 2499,
-      icon: Truck,
-    },
-    {
-      id: 'overnight',
-      name: 'Overnight Delivery',
-      description: 'Guaranteed next business day',
-      days: '1 business day',
-      price: 4999,
-      icon: Zap,
-    },
-  ];
+  const hasFreeMethod = methods.some((m) => m.isFree);
 
   return (
     <div>
       <div className="space-y-3 mb-8">
-        {METHODS.map((method) => (
+        {methods.map((method) => (
           <label
             key={method.id}
             className={`flex items-center gap-4 p-4 border cursor-pointer transition-all duration-200 ${
@@ -315,17 +324,17 @@ function ShippingStep({
               <p className="text-xs text-charcoal-400 font-body">{method.description} · {method.days}</p>
             </div>
             <p className="text-sm font-body font-medium text-charcoal-900 flex-shrink-0">
-              {method.price === 0 ? (
+              {method.isFree ? (
                 <span className="text-emerald-luxury">Free</span>
               ) : (
-                formatCurrency(method.price)
+                formatCurrency(method.priceDollars)
               )}
             </p>
           </label>
         ))}
       </div>
 
-      {subtotal >= 250 && (
+      {hasFreeMethod && (
         <p className="text-xs text-emerald-luxury font-body mb-6 flex items-center gap-1.5">
           <Check className="h-3.5 w-3.5" />
           Standard delivery is complimentary on your order
@@ -356,10 +365,12 @@ function ShippingStep({
 function PaymentStep({
   address,
   shippingMethodId,
+  shippingCostDollars,
   onBack,
 }: {
   address: AddressFormData;
   shippingMethodId: ShippingMethodId;
+  shippingCostDollars: number; // dollars, pre-computed by CheckoutContent
   onBack: () => void;
 }) {
   const stripe = useStripe();
@@ -370,14 +381,9 @@ function PaymentStep({
   const [billingMatchesShipping, setBillingMatchesShipping] = useState(true);
   const [cardError, setCardError] = useState<string | null>(null);
 
-  const SHIPPING_PRICES: Record<ShippingMethodId, number> = {
-    standard: getSubtotal() >= 250 ? 0 : 1299,
-    express: 2499,
-    overnight: 4999,
-  };
-  const shippingCost = SHIPPING_PRICES[shippingMethodId];
-  const subtotal = getSubtotal();
-  const total = Math.max(0, subtotal - couponDiscount + shippingCost);
+  const shippingCost = shippingCostDollars; // dollars
+  const subtotal = getSubtotal(); // dollars
+  const total = Math.max(0, subtotal - couponDiscount + shippingCost); // dollars
 
   const createPaymentIntent = useMutation({
     mutationFn: () =>
@@ -532,20 +538,34 @@ function CheckoutContent() {
   const [address, setAddress] = useState<AddressFormData | null>(null);
   const [shippingMethod, setShippingMethod] = useState<ShippingMethodId | null>(null);
 
-  const subtotal = getSubtotal();
+  const subtotal = getSubtotal(); // dollars
 
-  const SHIPPING_PRICES: Record<ShippingMethodId, number> = {
-    standard: subtotal >= 250 ? 0 : 1299,
-    express: 2499,
-    overnight: 4999,
-  };
+  // Fetch shipping methods from API (prices in cents), then normalize to dollars
+  const { data: apiShippingData } = useQuery<{ methods: ShippingMethodApi[] }>({
+    queryKey: ['shipping-methods'],
+    queryFn: () => api.get('/checkout/shipping-methods').then((r) => r.data.data),
+    staleTime: 10 * 60 * 1000,
+  });
 
-  const shippingCost = shippingMethod ? SHIPPING_PRICES[shippingMethod] : 0;
+  const shippingMethods = normalizeShippingMethods(
+    apiShippingData?.methods ?? [],
+    subtotal,
+  );
 
-  const shippingLabel = shippingMethod
-    ? SHIPPING_PRICES[shippingMethod] === 0
+  // Auto-select first method once methods load and nothing is selected
+  useEffect(() => {
+    if (shippingMethods.length > 0 && !shippingMethod) {
+      setShippingMethod(shippingMethods[0].id);
+    }
+  }, [shippingMethods.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectedShippingObj = shippingMethods.find((m) => m.id === shippingMethod) ?? null;
+  const shippingCostDollars = selectedShippingObj?.priceDollars ?? 0; // dollars
+
+  const shippingLabel = selectedShippingObj
+    ? selectedShippingObj.isFree
       ? 'Free'
-      : formatCurrency(SHIPPING_PRICES[shippingMethod])
+      : formatCurrency(selectedShippingObj.priceDollars)
     : 'Calculated next';
 
   useEffect(() => { document.title = 'Checkout | Lady B Designs'; }, []);
@@ -625,12 +645,11 @@ function CheckoutContent() {
                 >
                   <h2 className="font-serif font-light text-2xl text-charcoal-900 mb-6">Delivery Method</h2>
                   <ShippingStep
-                    subtotal={subtotal}
+                    methods={shippingMethods}
                     selectedMethod={shippingMethod}
                     onSelect={setShippingMethod}
                     onBack={() => setStep(1)}
                     onNext={() => {
-                      if (!shippingMethod) { setShippingMethod('standard'); }
                       setStep(3);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
@@ -650,6 +669,7 @@ function CheckoutContent() {
                   <PaymentStep
                     address={address}
                     shippingMethodId={shippingMethod}
+                    shippingCostDollars={shippingCostDollars}
                     onBack={() => setStep(2)}
                   />
                 </motion.div>
@@ -660,7 +680,7 @@ function CheckoutContent() {
           {/* Order summary */}
           <div className="lg:col-span-2">
             <div className="lg:sticky lg:top-36">
-              <OrderSummary shippingCost={shippingCost} shippingLabel={shippingLabel} />
+              <OrderSummary shippingCost={shippingCostDollars} shippingLabel={shippingLabel} />
             </div>
           </div>
         </div>

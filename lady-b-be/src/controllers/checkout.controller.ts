@@ -59,6 +59,8 @@ export async function createPaymentIntent(req: AuthRequest, res: Response, next:
       select: { id: true, name: true, price: true, isMadeToOrder: true },
     });
 
+    // All monetary values kept in DOLLARS (consistent with DB product prices).
+    // Only Stripe receives cents (multiply by 100 at the end).
     let subtotal = 0;
     const lineItems: { productId: string; variantId?: string; name: string; price: number; quantity: number }[] = [];
 
@@ -66,19 +68,27 @@ export async function createPaymentIntent(req: AuthRequest, res: Response, next:
       const product = products.find((p) => p.id === item.productId);
       if (!product) { sendError(res, `Product ${item.productId} not found or unavailable`, 400); return; }
 
-      let price = Number(product.price);
+      let price = Number(product.price); // dollars (e.g. 485.00)
       if (item.variantId) {
         const variant = await prisma.productVariant.findFirst({
           where: { id: item.variantId, productId: item.productId, isAvailable: true },
         });
-        if (variant) price = Number(variant.price);
+        if (variant) price = Number(variant.price); // dollars
       }
 
-      subtotal += price * item.quantity;
+      subtotal += price * item.quantity; // dollars
       lineItems.push({ productId: item.productId, variantId: item.variantId, name: product.name, price, quantity: item.quantity });
     }
 
-    // Coupon discount
+    // Shipping prices are stored in cents in SHIPPING_METHODS — convert to dollars here.
+    const freeThresholdDollars = shippingMethod.freeThreshold !== null
+      ? shippingMethod.freeThreshold / 100
+      : null;
+    const shippingCost = (freeThresholdDollars !== null && subtotal >= freeThresholdDollars)
+      ? 0
+      : shippingMethod.price / 100; // dollars
+
+    // Coupon discount (all in dollars)
     let discountAmount = 0;
     let couponId: string | undefined;
     if (couponCode) {
@@ -86,18 +96,17 @@ export async function createPaymentIntent(req: AuthRequest, res: Response, next:
       if (coupon && coupon.isActive && (!coupon.expiresAt || coupon.expiresAt > new Date())) {
         couponId = coupon.id;
         if (coupon.discountType === 'PERCENTAGE') {
-          discountAmount = Math.round((subtotal * Number(coupon.discountValue)) / 100);
+          discountAmount = (subtotal * Number(coupon.discountValue)) / 100; // dollars
           if (coupon.maximumDiscount) discountAmount = Math.min(discountAmount, Number(coupon.maximumDiscount));
         } else if (coupon.discountType === 'FIXED_AMOUNT') {
-          discountAmount = Math.min(Number(coupon.discountValue), subtotal);
+          discountAmount = Math.min(Number(coupon.discountValue), subtotal); // dollars
         } else if (coupon.discountType === 'FREE_SHIPPING') {
-          discountAmount = shippingMethod.price;
+          discountAmount = shippingCost; // dollars
         }
       }
     }
 
-    const shippingCost = subtotal >= (shippingMethod.freeThreshold ?? Infinity) ? 0 : shippingMethod.price;
-    const total = Math.max(0, subtotal - discountAmount + shippingCost);
+    const total = Math.max(0, subtotal - discountAmount + shippingCost); // dollars
 
     const { stripe } = await import('../config/stripe');
 
@@ -108,11 +117,11 @@ export async function createPaymentIntent(req: AuthRequest, res: Response, next:
         orderNumber,
         userId: req.user!.id,
         status: 'PENDING',
-        subtotal,
-        discountAmount,
-        shippingCost,
+        subtotal,        // dollars, consistent with product prices
+        discountAmount,  // dollars
+        shippingCost,    // dollars
         taxAmount: 0,
-        total,
+        total,           // dollars
         currency: 'USD',
         couponId,
         shippingCarrier: shippingMethod.name,
@@ -129,8 +138,10 @@ export async function createPaymentIntent(req: AuthRequest, res: Response, next:
       },
     });
 
+    const amountInCents = Math.round(total * 100);
+
     const intent = await stripe.paymentIntents.create({
-      amount: total,
+      amount: amountInCents,
       currency: 'usd',
       metadata: { orderId: order.id, userId: req.user!.id },
       automatic_payment_methods: { enabled: true },
@@ -140,7 +151,7 @@ export async function createPaymentIntent(req: AuthRequest, res: Response, next:
       data: {
         orderId: order.id,
         provider: 'STRIPE',
-        amount: total,
+        amount: total,     // dollars (matches order)
         currency: 'USD',
         status: 'PENDING',
         providerPaymentId: intent.id,

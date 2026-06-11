@@ -6,8 +6,10 @@ import { Footer } from './Footer';
 import { CartDrawer } from '../cart/CartDrawer';
 import { ScrollRestorer } from '../shared/ScrollRestorer';
 import { useUiStore } from '../../store/ui.store';
+import { useCartSync } from '../../hooks/useCartSync';
 
 export function MainLayout() {
+  useCartSync();
   const { isCartOpen, closeCart } = useUiStore();
 
   return (
