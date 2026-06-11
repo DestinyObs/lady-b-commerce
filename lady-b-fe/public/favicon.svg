@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" fill="#1C1917"/>
+  <!-- L -->
+  <text
+    x="8"
+    y="46"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="38"
+    font-weight="300"
+    fill="#D4AF72"
+    letter-spacing="-1"
+  >LB</text>
+  <!-- thin gold underline -->
+  <rect x="8" y="52" width="48" height="1.5" fill="#D4AF72" opacity="0.5"/>
+</svg>
