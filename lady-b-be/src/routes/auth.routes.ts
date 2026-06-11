@@ -8,6 +8,8 @@ import {
   resetPassword,
   getMe,
   changePassword,
+  verifyEmail,
+  resendVerification,
 } from '../controllers/auth.controller';
 import { validate } from '../middlewares/validate.middleware';
 import { authenticate } from '../middlewares/auth.middleware';
@@ -19,6 +21,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  resendVerificationSchema,
 } from '../schemas/auth.schema';
 
 const router = Router();
@@ -31,5 +34,7 @@ router.post('/forgot-password', authRateLimit, validate(forgotPasswordSchema), f
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
 router.get('/me', authenticate, getMe);
 router.patch('/change-password', authenticate, validate(changePasswordSchema), changePassword);
+router.get('/verify-email', verifyEmail);
+router.post('/resend-verification', authRateLimit, validate(resendVerificationSchema), resendVerification);
 
 export default router;

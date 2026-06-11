@@ -73,7 +73,7 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
   try {
     switch (event.type) {
       case 'payment_intent.succeeded': {
-        const pi = event.data.object as { id: string; metadata: { orderId: string; userId: string }; amount: number };
+        const pi = event.data.object as unknown as { id: string; metadata: { orderId: string; userId: string }; amount: number };
         await prisma.$transaction([
           prisma.payment.updateMany({
             where: { providerPaymentId: pi.id },

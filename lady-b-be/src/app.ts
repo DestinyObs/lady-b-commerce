@@ -20,6 +20,9 @@ import reviewRoutes from './routes/review.routes';
 import uploadRoutes from './routes/upload.routes';
 import contactRoutes from './routes/contact.routes';
 import adminRoutes from './routes/admin.routes';
+import accountRoutes from './routes/account.routes';
+import collectionRoutes from './routes/collection.routes';
+import couponRoutes from './routes/coupon.routes';
 
 const app = express();
 
@@ -75,6 +78,9 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api', contactRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/account', accountRoutes);
+app.use('/api/collections', collectionRoutes);
+app.use('/api/coupons', couponRoutes);
 
 // ─── API docs ─────────────────────────────────────────────────────────────────
 if (env.NODE_ENV !== 'production') {

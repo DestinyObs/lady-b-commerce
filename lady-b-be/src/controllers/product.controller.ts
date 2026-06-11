@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ProductStatus } from '@prisma/client';
 import { prisma } from '../config/database';
 import { cacheGet, cacheSet, cacheDel, cacheDelPattern, CACHE_TTL } from '../config/redis';
-import { sendSuccess, sendCreated, sendPaginated, sendNotFound, getPaginationParams, paginate } from '../utils/response';
+import { sendSuccess, sendCreated, sendPaginated, sendNotFound, sendError, getPaginationParams, paginate } from '../utils/response';
 import { generateUniqueProductSlug } from '../utils/slug';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { NotFoundError } from '../middlewares/error.middleware';
@@ -240,6 +240,32 @@ export async function archiveProduct(req: AuthRequest, res: Response, next: Next
     });
     await cacheDel(`product:${id}`);
     sendSuccess(res, product, 'Product archived');
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function notifyWhenAvailable(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+    const { email } = req.body as { email?: string };
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      sendError(res, 'A valid email address is required', 400);
+      return;
+    }
+
+    const product = await prisma.product.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, name: true, status: true },
+    });
+    if (!product) { sendNotFound(res, 'Product'); return; }
+
+    const { redis } = await import('../config/redis');
+    await redis.sadd(`stock_notify:${id}`, email.toLowerCase().trim());
+    await redis.expire(`stock_notify:${id}`, 60 * 60 * 24 * 30); // 30 days
+
+    sendSuccess(res, null, `We'll notify you at ${email} when this item is back in stock`);
   } catch (error) {
     next(error);
   }

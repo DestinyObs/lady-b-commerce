@@ -117,3 +117,19 @@ export async function rejectReview(req: Request, res: Response, next: NextFuncti
     next(error);
   }
 }
+
+export async function deleteReview(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const review = await prisma.review.findUnique({ where: { id: req.params.id }, select: { id: true, userId: true } });
+    if (!review) { sendNotFound(res, 'Review'); return; }
+
+    const isOwner = review.userId === req.user!.id;
+    const isAdmin = req.user!.role === 'ADMIN';
+    if (!isOwner && !isAdmin) { sendError(res, 'Forbidden', 403); return; }
+
+    await prisma.review.delete({ where: { id: req.params.id } });
+    sendSuccess(res, null, 'Review deleted');
+  } catch (error) {
+    next(error);
+  }
+}

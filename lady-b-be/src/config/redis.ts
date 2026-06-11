@@ -38,7 +38,7 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
   return JSON.parse(value) as T;
 }
 
-export async function cacheSet(key: string, value: unknown, ttl = CACHE_TTL.MEDIUM): Promise<void> {
+export async function cacheSet(key: string, value: unknown, ttl: number = CACHE_TTL.MEDIUM): Promise<void> {
   await redis.setex(key, ttl, JSON.stringify(value));
 }
 

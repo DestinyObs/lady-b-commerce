@@ -141,6 +141,7 @@ model User {
   refreshToken      String?
   lastLoginAt       DateTime?
   isActive          Boolean   @default(true)
+  preferences       Json?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
@@ -268,6 +269,7 @@ model Product {
   isMadeToOrder     Boolean       @default(false)
   isCustomizable    Boolean       @default(false)
   madeToOrderLeadDays Int?
+  stockQuantity     Int           @default(0)
   lowStockThreshold Int           @default(5)
   seoTitle          String?
   seoDescription    String?

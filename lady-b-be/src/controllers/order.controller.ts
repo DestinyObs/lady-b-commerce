@@ -35,11 +35,13 @@ export async function createOrder(
           code: appliedCouponCode,
           isActive: true,
           OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-          OR: [{ usageLimit: null }, { usedCount: { lt: prisma.coupon.fields.usageLimit } }],
         },
       });
 
-      if (coupon) {
+      // Check usage limit in application code (Prisma can't compare fields directly)
+      const withinUsageLimit = !coupon?.usageLimit || coupon.usedCount < coupon.usageLimit;
+
+      if (coupon && withinUsageLimit) {
         couponId = coupon.id;
         const subtotal = cart.items.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
         discountAmount = coupon.discountType === 'PERCENTAGE'

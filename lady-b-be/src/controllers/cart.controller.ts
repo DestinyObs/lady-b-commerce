@@ -29,7 +29,20 @@ async function getOrCreateCart(userId?: string, sessionId?: string) {
   if (!cart) {
     cart = await prisma.cart.create({
       data: { ...(userId ? { userId } : { sessionId }) },
-      include: { items: { include: { product: true, variant: true } }, coupon: true },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true, name: true, slug: true, price: true, status: true,
+                images: { where: { isPrimary: true }, take: 1 },
+              },
+            },
+            variant: true,
+          },
+        },
+        coupon: true,
+      },
     });
   }
 

@@ -13,6 +13,7 @@ import {
 import {
   sendWelcomeEmail,
   sendPasswordResetEmail,
+  sendEmail,
 } from '../utils/email';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { AppError, NotFoundError } from '../middlewares/error.middleware';
@@ -301,6 +302,61 @@ export async function changePassword(
     });
 
     sendSuccess(res, null, 'Password changed successfully');
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { token } = req.query as { token?: string };
+    if (!token) { sendError(res, 'Verification token is required', 400); return; }
+
+    const user = await prisma.user.findFirst({
+      where: { emailVerifyToken: token, isEmailVerified: false },
+      select: { id: true, email: true, firstName: true },
+    });
+
+    if (!user) {
+      sendError(res, 'Invalid or already-used verification token', 400);
+      return;
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { isEmailVerified: true, emailVerifyToken: null },
+    });
+
+    sendSuccess(res, null, 'Email verified successfully. You can now log in.');
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function resendVerification(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { email } = req.body as { email?: string };
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, firstName: true, isEmailVerified: true },
+    });
+
+    // Always return success to prevent email enumeration
+    if (user && !user.isEmailVerified) {
+      const token = crypto.randomBytes(32).toString('hex');
+      await prisma.user.update({ where: { id: user.id }, data: { emailVerifyToken: token } });
+
+      const verifyUrl = `${process.env.APP_URL}/verify-email?token=${token}`;
+      await sendEmail({
+        to: user.email,
+        subject: 'Verify your Lady B Designs email',
+        html: `<p>Hi ${user.firstName},</p><p>Click below to verify your email:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`,
+        text: `Verify your email: ${verifyUrl}`,
+      }).catch(() => {});
+    }
+
+    sendSuccess(res, null, 'If that email is registered and unverified, a new link has been sent.');
   } catch (error) {
     next(error);
   }

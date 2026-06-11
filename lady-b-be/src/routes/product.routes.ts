@@ -8,6 +8,7 @@ import {
   deleteProduct,
   publishProduct,
   archiveProduct,
+  notifyWhenAvailable,
 } from '../controllers/product.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import { requireAdmin } from '../middlewares/role.middleware';
@@ -25,5 +26,6 @@ router.patch('/:id', authenticate, requireAdmin, validate(updateProductSchema), 
 router.delete('/:id', authenticate, requireAdmin, deleteProduct);
 router.patch('/:id/publish', authenticate, requireAdmin, publishProduct);
 router.patch('/:id/archive', authenticate, requireAdmin, archiveProduct);
+router.post('/:id/notify', notifyWhenAvailable);
 
 export default router;
