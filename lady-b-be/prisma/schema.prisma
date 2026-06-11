@@ -776,3 +776,78 @@ model SiteSetting {
   @@index([group])
   @@map("site_settings")
 }
+
+model JournalPost {
+  id               String    @id @default(cuid())
+  slug             String    @unique
+  title            String
+  excerpt          String?
+  body             String    @db.Text
+  coverImage       String?
+  category         String    @default("Journal")
+  tags             String[]
+  readTimeMinutes  Int       @default(5)
+  status           String    @default("DRAFT")
+  authorName       String    @default("Lady B")
+  authorRole       String    @default("Designer & Founder")
+  authorAvatar     String?
+  publishedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([slug])
+  @@index([status])
+  @@index([publishedAt])
+  @@map("journal_posts")
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String   @db.Text
+  category  String   @default("General")
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+  @@map("faqs")
+}
+
+model GiftCard {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  initialAmount  Int
+  balance        Int
+  recipientName  String?
+  recipientEmail String?
+  senderName     String?
+  message        String?
+  isActive       Boolean   @default(true)
+  expiresAt      DateTime?
+  purchasedByEmail String?
+  purchasedAt    DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  redemptions    GiftCardRedemption[]
+
+  @@index([code])
+  @@index([recipientEmail])
+  @@map("gift_cards")
+}
+
+model GiftCardRedemption {
+  id          String    @id @default(cuid())
+  giftCardId  String
+  orderId     String?
+  amount      Int
+  redeemedAt  DateTime  @default(now())
+
+  giftCard    GiftCard  @relation(fields: [giftCardId], references: [id])
+
+  @@index([giftCardId])
+  @@map("gift_card_redemptions")
+}

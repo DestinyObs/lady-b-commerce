@@ -245,6 +245,43 @@ export async function archiveProduct(req: AuthRequest, res: Response, next: Next
   }
 }
 
+export async function searchProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { q, limit = '5' } = req.query as { q?: string; limit?: string };
+
+    if (!q || q.trim().length < 2) {
+      sendError(res, 'Search query must be at least 2 characters', 400);
+      return;
+    }
+
+    const take = Math.min(parseInt(limit, 10) || 5, 20);
+
+    const products = await prisma.product.findMany({
+      where: {
+        deletedAt: null,
+        status: ProductStatus.ACTIVE,
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+          { sku: { contains: q, mode: 'insensitive' } },
+          { materials: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        id: true, name: true, slug: true, price: true, compareAtPrice: true,
+        images: { where: { isPrimary: true }, take: 1, select: { url: true, altText: true } },
+        category: { select: { name: true, slug: true } },
+      },
+      take,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    sendSuccess(res, { products }, `${products.length} result(s) found`);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function notifyWhenAvailable(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;

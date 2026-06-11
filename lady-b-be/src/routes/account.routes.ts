@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import { uploadSingle } from '../middlewares/upload.middleware';
 import { updateProfileSchema, createAddressSchema, updateAddressSchema, updateSettingsSchema } from '../schemas/account.schema';
+import { changePasswordSchema } from '../schemas/auth.schema';
 import {
   getProfile, updateProfile, uploadAvatar,
   getAccountSettings, updateAccountSettings,
@@ -13,6 +14,8 @@ import {
   getPaymentMethods, createSetupIntent, deletePaymentMethod,
   getInvoices,
 } from '../controllers/account.controller';
+import { getUserCustomOrders, getUserCustomOrder } from '../controllers/custom-order.controller';
+import { changePassword } from '../controllers/auth.controller';
 
 const router = Router();
 
@@ -56,5 +59,12 @@ router.delete('/payment-methods/:id', deletePaymentMethod);
 
 // Invoices
 router.get('/invoices', getInvoices);
+
+// Password change (alias from /auth/change-password for account section)
+router.patch('/password', validate(changePasswordSchema), changePassword as express.RequestHandler);
+
+// Custom Orders
+router.get('/custom-orders', getUserCustomOrders);
+router.get('/custom-orders/:id', getUserCustomOrder);
 
 export default router;

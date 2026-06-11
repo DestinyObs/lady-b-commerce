@@ -8,6 +8,7 @@ import { globalRateLimit } from './middlewares/rate-limit.middleware';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 import { logger } from './utils/logger';
 import { env } from './config/env';
+import { swaggerSpec } from './swagger';
 
 // Routes
 import authRoutes from './routes/auth.routes';
@@ -23,6 +24,11 @@ import adminRoutes from './routes/admin.routes';
 import accountRoutes from './routes/account.routes';
 import collectionRoutes from './routes/collection.routes';
 import couponRoutes from './routes/coupon.routes';
+import categoriesRoutes from './routes/categories.routes';
+import faqRoutes from './routes/faq.routes';
+import journalRoutes from './routes/journal.routes';
+import giftCardsRoutes from './routes/gift-cards.routes';
+import checkoutRoutes from './routes/checkout.routes';
 
 const app = express();
 
@@ -56,49 +62,65 @@ app.use(cookieParser());
 // ─── Global rate limit ────────────────────────────────────────────────────────
 app.use('/api', globalRateLimit);
 
-// ─── Health check ─────────────────────────────────────────────────────────────
-app.get('/api/health', (_req, res) => {
-  res.json({
-    success: true,
-    message: 'Lady B Commerce API is running',
+// ─── Health check (with real DB + Redis status) ───────────────────────────────
+app.get('/api/health', async (_req, res) => {
+  const status: Record<string, 'ok' | 'error'> = { database: 'error', redis: 'error' };
+
+  try {
+    const { prisma } = await import('./config/database');
+    await prisma.$queryRaw`SELECT 1`;
+    status.database = 'ok';
+  } catch {}
+
+  try {
+    const { redis } = await import('./config/redis');
+    await redis.ping();
+    status.redis = 'ok';
+  } catch {}
+
+  const healthy = Object.values(status).every((s) => s === 'ok');
+
+  res.status(healthy ? 200 : 503).json({
+    success: healthy,
+    message: healthy ? 'Lady B Commerce API is running' : 'Degraded — check services',
     environment: env.NODE_ENV,
     timestamp: new Date().toISOString(),
     version: '1.0.0',
+    services: status,
   });
 });
 
 // ─── API routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/categories', categoriesRoutes);
+app.use('/api/collections', collectionRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/checkout', checkoutRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/custom-orders', customOrderRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/uploads', uploadRoutes);
-app.use('/api', contactRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/account', accountRoutes);
-app.use('/api/collections', collectionRoutes);
 app.use('/api/coupons', couponRoutes);
+app.use('/api/gift-cards', giftCardsRoutes);
+app.use('/api/journal', journalRoutes);
+app.use('/api/faq', faqRoutes);
+app.use('/api', contactRoutes);
+app.use('/api/account', accountRoutes);
+app.use('/api/admin', adminRoutes);
 
-// ─── API docs ─────────────────────────────────────────────────────────────────
+// ─── API docs (Swagger UI) ────────────────────────────────────────────────────
 if (env.NODE_ENV !== 'production') {
-  const swaggerSpec = {
-    openapi: '3.0.0',
-    info: {
-      title: 'Lady B Commerce API',
-      version: '1.0.0',
-      description: 'Lady B Designs and Handcraft — Global Luxury Artisan Fashion Platform API',
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { background-color: #1C1917; }',
+    customSiteTitle: 'Lady B Commerce API Docs',
+    swaggerOptions: {
+      docExpansion: 'list',
+      filter: true,
+      showRequestDuration: true,
     },
-    servers: [{ url: `http://localhost:${env.PORT}/api` }],
-    components: {
-      securitySchemes: {
-        bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-      },
-    },
-  };
-  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  }));
 }
 
 // ─── 404 + error handlers ─────────────────────────────────────────────────────
