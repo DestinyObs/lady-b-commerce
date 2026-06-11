@@ -23,6 +23,23 @@ async function main() {
   });
   console.log('✅ Admin user created:', admin.email);
 
+  // Demo customer account
+  const customerPassword = await bcrypt.hash('LadyBGuest2024!', 12);
+  const customer = await prisma.user.upsert({
+    where: { email: 'demo@ladybdesigns.com' },
+    update: {},
+    create: {
+      email: 'demo@ladybdesigns.com',
+      passwordHash: customerPassword,
+      firstName: 'Grace',
+      lastName: 'Adeyemi',
+      role: UserRole.CUSTOMER,
+      isEmailVerified: true,
+      isActive: true,
+    },
+  });
+  console.log('✅ Demo customer created:', customer.email);
+
   // Categories
   const categories = await Promise.all([
     prisma.category.upsert({ where: { slug: 'bead-bags' }, update: {}, create: { name: 'Bead Bags', slug: 'bead-bags', description: 'Handcrafted luxury bead bags', sortOrder: 1 } }),
