@@ -1,36 +1,102 @@
-# Lady B Designs — Complete API Endpoint Reference
+# Lady B Designs — Complete Backend API Specification
 
-Every endpoint the frontend calls, organised by domain. This is the full build spec for the backend.
+Compiled from every page, component, form, and hook in the frontend codebase.
+Includes endpoints already wired, endpoints behind fake `setTimeout` stubs, and
+implied endpoints needed to power every piece of UI.
 
-**Base URL (dev):** `http://localhost:4000/api`  
-**Auth header:** `Authorization: Bearer <accessToken>`  
-**Standard success envelope:** `{ success: true, message: string, data: T }`  
-**Standard error envelope:** `{ success: false, message: string, errors?: object }`
+**Base URL (dev):** `http://localhost:4000/api`
+**Auth header:** `Authorization: Bearer <accessToken>`
+**Envelope (success):** `{ success: true, message: string, data: T }`
+**Envelope (error):** `{ success: false, message: string, errors?: Record<string, string> }`
 
 ---
 
-## 1. Authentication  `/auth`
+## TABLE OF CONTENTS
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/auth/register` | — | Create new customer account |
-| POST | `/auth/login` | — | Email + password login |
-| POST | `/auth/logout` | ✅ | Invalidate refresh token |
-| POST | `/auth/refresh-token` | — | Exchange refresh token for new access token |
-| POST | `/auth/forgot-password` | — | Send password-reset email |
-| POST | `/auth/reset-password` | — | Consume reset token, set new password |
-| GET | `/auth/me` | ✅ | Return authenticated user profile |
+1. [Auth](#1-auth)
+2. [Products](#2-products)
+3. [Categories](#3-categories)
+4. [Collections](#4-collections)
+5. [Reviews](#5-reviews)
+6. [Coupons](#6-coupons)
+7. [Newsletter](#7-newsletter)
+8. [Gift Cards](#8-gift-cards)
+9. [Journal](#9-journal)
+10. [FAQ](#10-faq)
+11. [Contact](#11-contact)
+12. [Wholesale Enquiries](#12-wholesale-enquiries)
+13. [Press Enquiries](#13-press-enquiries)
+14. [Custom Orders (Public)](#14-custom-orders-public)
+15. [Checkout & Payments](#15-checkout--payments)
+16. [Orders (Public)](#16-orders-public)
+17. [Uploads](#17-uploads)
+18. [Account — Profile](#18-account--profile)
+19. [Account — Dashboard](#19-account--dashboard)
+20. [Account — Orders](#20-account--orders)
+21. [Account — Addresses](#21-account--addresses)
+22. [Account — Wishlist](#22-account--wishlist)
+23. [Account — Custom Orders](#23-account--custom-orders)
+24. [Account — Billing & Payment Methods](#24-account--billing--payment-methods)
+25. [Account — Settings](#25-account--settings)
+26. [Admin — Dashboard](#26-admin--dashboard)
+27. [Admin — Products](#27-admin--products)
+28. [Admin — Collections](#28-admin--collections)
+29. [Admin — Categories](#29-admin--categories)
+30. [Admin — Orders](#30-admin--orders)
+31. [Admin — Custom Orders](#31-admin--custom-orders)
+32. [Admin — Customers](#32-admin--customers)
+33. [Admin — Reviews](#33-admin--reviews)
+34. [Admin — Coupons](#34-admin--coupons)
+35. [Admin — Newsletter](#35-admin--newsletter)
+36. [Admin — Contact Messages](#36-admin--contact-messages)
+37. [Admin — Wholesale](#37-admin--wholesale)
+38. [Admin — Press](#38-admin--press)
+39. [Admin — Journal (CMS)](#39-admin--journal-cms)
+40. [Admin — Inventory](#40-admin--inventory)
+41. [Admin — Gift Cards](#41-admin--gift-cards)
+42. [Admin — Settings](#42-admin--settings)
+43. [Admin — Audit Logs](#43-admin--audit-logs)
+44. [Webhooks](#44-webhooks)
+45. [Health Check](#45-health-check)
+46. [Middleware Reference](#46-middleware-reference)
+47. [Response Shape Reference](#47-response-shape-reference)
+48. [Status Codes](#48-status-codes)
+49. [Total Endpoint Count](#49-total-endpoint-count)
 
-### Request bodies
+---
+
+## 1. Auth
+
+> Rate-limited endpoints are protected by `authRateLimit` middleware (5 req/15 min per IP).
+
+| # | Method | Path | Auth | Rate | Description |
+|---|--------|------|------|------|-------------|
+| 1 | POST | `/auth/register` | — | ✅ | Create customer account |
+| 2 | POST | `/auth/login` | — | ✅ | Email + password sign in |
+| 3 | POST | `/auth/logout` | ✅ Bearer | — | Invalidate refresh token |
+| 4 | POST | `/auth/refresh-token` | — | — | Exchange refresh → new access token |
+| 5 | POST | `/auth/forgot-password` | — | ✅ | Send reset link email |
+| 6 | POST | `/auth/reset-password` | — | — | Consume token, set new password |
+| 7 | GET  | `/auth/me` | ✅ Bearer | — | Return full authenticated user |
+| 8 | GET  | `/auth/verify-email/:token` | — | — | Verify email address from link |
+| 9 | POST | `/auth/resend-verification` | ✅ Bearer | ✅ | Resend email verification link |
+
+### Payloads
 
 **POST /auth/register**
 ```json
-{ "firstName": "Grace", "lastName": "Adeyemi", "email": "...", "password": "..." }
+{
+  "firstName": "Grace",
+  "lastName": "Adeyemi",
+  "email": "grace@example.com",
+  "password": "MinLength8WithUpperAndNumber1"
+}
 ```
+Response `data`: `{ user: User, accessToken: string, refreshToken: string }`
 
 **POST /auth/login**
 ```json
-{ "email": "...", "password": "..." }
+{ "email": "grace@example.com", "password": "..." }
 ```
 Response `data`: `{ user: User, accessToken: string, refreshToken: string }`
 
@@ -38,192 +104,284 @@ Response `data`: `{ user: User, accessToken: string, refreshToken: string }`
 ```json
 { "refreshToken": "..." }
 ```
+Response `data`: `{ accessToken: string, refreshToken: string }`
 
 **POST /auth/forgot-password**
 ```json
-{ "email": "..." }
+{ "email": "grace@example.com" }
 ```
 
 **POST /auth/reset-password**
 ```json
-{ "token": "...", "password": "..." }
+{ "token": "uuid-from-email-link", "password": "NewPassword123!" }
 ```
 
 ---
 
-## 2. Products  `/products`
+## 2. Products
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/products` | — | List products with filters |
-| GET | `/products/search` | — | Search products by keyword |
-| GET | `/products/slug/:slug` | — | Get single product by URL slug |
-| GET | `/products/:id` | — | Get single product by ID |
-| GET | `/products/:id/reviews` | — | Paginated reviews for a product |
-| POST | `/products/:id/notify` | — | Back-in-stock email signup |
-| POST | `/products` | Admin | Create product |
-| PATCH | `/products/:id` | Admin | Update product |
-| DELETE | `/products/:id` | Admin | Delete product |
-| PATCH | `/products/:id/publish` | Admin | Publish draft product |
-| PATCH | `/products/:id/archive` | Admin | Archive product |
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 10 | GET | `/products` | — | Paginated product list with filters |
+| 11 | GET | `/products/search` | — | Keyword search (header autocomplete) |
+| 12 | GET | `/products/slug/:slug` | — | Product detail by URL slug |
+| 13 | GET | `/products/:id` | — | Product detail by ID |
+| 14 | GET | `/products/:id/reviews` | — | Paginated reviews for a product |
+| 15 | POST | `/products/:id/notify` | — | Back-in-stock email signup |
 
-### Query params — GET /products
-```
-page, limit, status (ACTIVE|DRAFT|ARCHIVED), categoryId, categorySlug,
-collection, sort (newest|price_asc|price_desc|featured), q (search),
-exclude (id to exclude), lowStock (boolean)
-```
+### GET /products — Query Parameters
 
-### Query params — GET /products/search
-```
-q (required), limit
-```
+| Param | Type | Description |
+|-------|------|-------------|
+| `page` | number | Default 1 |
+| `limit` | number | Default 12 |
+| `status` | `ACTIVE\|DRAFT\|ARCHIVED` | Default ACTIVE for public |
+| `categoryId` | string | Filter by category ID |
+| `categorySlug` | string | Filter by category slug |
+| `collection` | string | Filter by collection slug |
+| `sort` | `newest\|price_asc\|price_desc\|featured` | |
+| `q` | string | Full-text search |
+| `exclude` | string | Exclude product ID (related products) |
+| `isNewArrival` | boolean | Filter new arrivals |
+| `lowStock` | boolean | Admin: stock ≤ 5 |
+
+Response `data`: `{ products: Product[], total: number, page: number, totalPages: number }`
+
+### GET /products/search — Query Parameters
+| Param | Type | Description |
+|-------|------|-------------|
+| `q` | string | Required, min 2 chars |
+| `limit` | number | Default 5 |
+
 Response `data`: `{ products: Product[] }`
-
-### GET /products/:id/reviews
-```
-limit, page, sort
-```
-Response `data`: `{ reviews: Review[], total: number, page: number }`
 
 ### POST /products/:id/notify
 ```json
-{ "email": "customer@example.com" }
+{ "email": "grace@example.com" }
 ```
 
 ---
 
-## 3. Categories  `/categories`
+## 3. Categories
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/categories` | — | List all categories |
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 16 | GET | `/categories` | — | List active categories |
 
-### Query params — GET /categories
-```
-isActive (boolean), limit
-```
+**GET /categories** query params: `isActive` (boolean), `limit` (default 20)
+
 Response `data`: `{ categories: Category[] }`
 
+```json
+// Category shape
+{ "id": "...", "name": "Clutch Bags", "slug": "clutch-bags", "description": "...", "isActive": true }
+```
+
 ---
 
-## 4. Collections  `/collections`
+## 4. Collections
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/collections` | — | List collections |
-| GET | `/collections/slug/:slug` | — | Get collection by slug (with products) |
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 17 | GET | `/collections` | — | List all active collections |
+| 18 | GET | `/collections/slug/:slug` | — | Collection detail + paginated products |
 
-### Query params — GET /collections
-```
-status (ACTIVE|DRAFT), includeCount (boolean — include product count per collection)
-```
+**GET /collections** query params: `status` (ACTIVE\|DRAFT), `includeCount` (boolean)
+
 Response `data`: `{ collections: Collection[] }`
 
-### GET /collections/slug/:slug
-Response `data`: `{ collection: Collection & { products: Product[] }, total: number }`
+**GET /collections/slug/:slug** — includes paginated products
 
----
-
-## 5. Reviews  `/reviews`
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/products/:id/reviews` | ✅ Customer | Submit a product review |
-
-**POST /products/:id/reviews**
+Response `data`:
 ```json
-{ "rating": 5, "title": "Beautiful piece", "body": "..." }
+{
+  "collection": { "id": "...", "name": "...", "slug": "...", "description": "...", "image": "...", "status": "ACTIVE" },
+  "products": Product[],
+  "total": 24,
+  "page": 1,
+  "totalPages": 2
+}
 ```
 
 ---
 
-## 6. Coupons  `/coupons`
+## 5. Reviews
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/coupons/validate` | — | Validate coupon code against a subtotal |
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 19 | POST | `/products/:id/reviews` | ✅ Customer | Submit a review (verified purchase only) |
 
-**POST /coupons/validate**
 ```json
+{ "rating": 5, "title": "Extraordinary craftsmanship", "body": "Every bead perfectly placed..." }
+```
+
+---
+
+## 6. Coupons
+
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 20 | POST | `/coupons/validate` | — | Validate coupon code against cart subtotal |
+
+```json
+// Request
 { "code": "LADYB20", "subtotal": 280.00 }
+
+// Response data
+{ "code": "LADYB20", "discountAmount": 56.00, "discountType": "PERCENTAGE", "value": 20 }
 ```
-Response `data`: `{ code: string, discountAmount: number, discountType: "PERCENTAGE"|"FIXED" }`
 
 ---
 
-## 7. Newsletter  `/newsletter`
+## 7. Newsletter
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/newsletter/subscribe` | — | Subscribe email to newsletter |
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 21 | POST | `/newsletter/subscribe` | — | Subscribe email (footer + popup) |
 
-**POST /newsletter/subscribe**
 ```json
-{ "email": "...", "source": "footer" | "popup" }
+// Request — footer sends { "email": "..." }, popup sends { "email": "...", "source": "popup" }
+{ "email": "grace@example.com", "source": "footer" }
 ```
 
 ---
 
-## 8. Gift Cards  `/gift-cards`
+## 8. Gift Cards
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/gift-cards` | — | Purchase and email a gift card |
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 22 | POST | `/gift-cards` | — | Purchase and email a digital gift card |
+| 23 | POST | `/gift-cards/redeem` | ✅ | Apply gift card code at checkout |
 
 **POST /gift-cards**
 ```json
 {
   "amount": 100,
-  "recipientName": "Jane",
+  "recipientName": "Jane Doe",
   "recipientEmail": "jane@example.com",
-  "message": "Happy birthday!"
+  "message": "Happy birthday! Enjoy something beautiful."
 }
 ```
 Response `data`: `{ giftCard: { code: string, amount: number, expiresAt: string } }`
 
+**POST /gift-cards/redeem** (called inside checkout flow)
+```json
+{ "code": "LBGC-XXXX-XXXX", "orderId": "..." }
+```
+
 ---
 
-## 9. Journal  `/journal`
+## 9. Journal
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/journal` | — | List published journal posts |
-| GET | `/journal/:slug` | — | Get single journal post with related posts |
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 24 | GET | `/journal` | — | Paginated list of published posts |
+| 25 | GET | `/journal/:slug` | — | Single post with related posts |
 
-### GET /journal/:slug
+**GET /journal** query params: `page`, `limit`, `category`
+
 Response `data`:
 ```json
 {
-  "id": "...", "slug": "...", "title": "...", "excerpt": "...", "body": "...",
-  "coverImage": "...", "category": "...", "tags": [],
-  "readTimeMinutes": 5, "publishedAt": "...",
-  "author": { "name": "...", "role": "...", "avatar": "..." },
+  "posts": [{
+    "id": "...", "slug": "...", "title": "...", "excerpt": "...", "coverImage": "...",
+    "category": "...", "readTimeMinutes": 5, "publishedAt": "..."
+  }],
+  "total": 12, "page": 1, "totalPages": 2
+}
+```
+
+**GET /journal/:slug**
+Response `data`:
+```json
+{
+  "id": "...", "slug": "...", "title": "...", "excerpt": "...", "body": "HTML string",
+  "coverImage": "...", "category": "...", "tags": ["beadwork", "luxury"],
+  "readTimeMinutes": 6, "publishedAt": "...",
+  "author": { "name": "Lady B", "role": "Designer & Founder", "avatar": "..." },
   "relatedPosts": [{ "id": "...", "slug": "...", "title": "...", "coverImage": "...", "category": "...", "publishedAt": "..." }]
 }
 ```
 
 ---
 
-## 10. Contact  `/contact`
+## 10. FAQ
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/contact` | — | Submit a contact form message |
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 26 | GET | `/faq` | — | All FAQ items (currently hardcoded, needs DB) |
 
-**POST /contact**
+Response `data`: `{ faqs: [{ id, question, answer, category, order }] }`
+
+> FaqPage currently has hardcoded questions. This endpoint will replace them.
+
+---
+
+## 11. Contact
+
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 27 | POST | `/contact` | — | Submit contact form (currently uses fake setTimeout) |
+
 ```json
-{ "name": "...", "email": "...", "subject": "...", "message": "..." }
+{
+  "name": "Grace Adeyemi",
+  "email": "grace@example.com",
+  "phone": "+13175551234",
+  "subject": "Order enquiry",
+  "message": "I would like to know more about bespoke commissions..."
+}
+```
+
+> ContactPage currently fakes submission with `await new Promise(r => setTimeout(r, 1200))`. Replace with real API call.
+
+---
+
+## 12. Wholesale Enquiries
+
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 28 | POST | `/wholesale` | — | Submit wholesale application (currently fake setTimeout) |
+
+```json
+{
+  "business": "Fashion Boutique Lagos",
+  "name": "Adaeze Okafor",
+  "email": "adaeze@boutique.com",
+  "phone": "+2348012345678",
+  "country": "Nigeria",
+  "message": "We are interested in carrying Lady B pieces..."
+}
+```
+
+> WholesalePage currently fakes submission. Replace with real API call.
+
+---
+
+## 13. Press Enquiries
+
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 29 | POST | `/press` | — | Submit press / media enquiry (currently fake setTimeout) |
+
+```json
+{
+  "name": "Victoria Mills",
+  "email": "victoria@vogue.com",
+  "publication": "Vogue",
+  "role": "Fashion Editor",
+  "message": "We'd love to feature Lady B in our September issue..."
+}
 ```
 
 ---
 
-## 11. Custom Orders  `/custom-orders`
+## 14. Custom Orders (Public)
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/custom-orders` | ✅ Customer | Submit a bespoke order request |
-| GET | `/custom-orders/:requestId` | ✅ Customer | Track a custom order request |
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 30 | POST | `/custom-orders` | ✅ Customer | Submit bespoke order request |
+| 31 | GET  | `/custom-orders/:requestId` | ✅ Customer | Track request status + messages |
 
 **POST /custom-orders**
 ```json
@@ -231,126 +389,175 @@ Response `data`:
   "bagStyle": "clutch",
   "primaryColor": "cobalt blue",
   "secondaryColor": "gold",
+  "beadType": "Japanese seed beads",
   "dimensions": "10x6 inches",
   "occasion": "Wedding",
   "budget": 350,
   "deadline": "2024-12-01",
-  "description": "...",
-  "inspirationImages": ["url1", "url2"]
+  "description": "I'd love a cobalt clutch with gold accents for my sister's wedding...",
+  "inspirationImages": ["https://cloudinary.com/..."]
 }
 ```
 Response `data`: `{ request: CustomOrder }`
 
-### GET /custom-orders/:requestId
-Response `data`: `{ request: CustomOrder & { messages: Message[], timeline: TimelineEvent[] } }`
+**GET /custom-orders/:requestId**
+Response `data`:
+```json
+{
+  "request": {
+    "id": "...", "status": "SUBMITTED|REVIEWING|QUOTED|IN_PROGRESS|COMPLETED|CANCELLED",
+    "bagStyle": "clutch", "quotedPrice": null, "estimatedCompletionDate": null,
+    "messages": [{ "id": "...", "sender": "ADMIN|CUSTOMER", "content": "...", "createdAt": "..." }],
+    "timeline": [{ "status": "SUBMITTED", "date": "...", "note": "Request received" }]
+  }
+}
+```
 
 ---
 
-## 12. Checkout  `/checkout`
+## 15. Checkout & Payments
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/checkout/create-payment-intent` | ✅ | Create Stripe PaymentIntent and order draft |
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 32 | GET  | `/checkout/shipping-methods` | — | Available shipping options |
+| 33 | POST | `/checkout/create-payment-intent` | ✅ | Create Stripe PaymentIntent + order draft |
+| 34 | POST | `/checkout/confirm` | ✅ | Confirm order after Stripe payment succeeds |
+
+**GET /checkout/shipping-methods** — Frontend shows Standard ($12.99, free ≥$250) and Express options
+```json
+// Response data
+{
+  "methods": [
+    { "id": "standard", "name": "Standard Shipping", "description": "5–7 business days", "price": 1299, "freeThreshold": 25000 },
+    { "id": "express", "name": "Express Shipping", "description": "2–3 business days", "price": 2999 }
+  ]
+}
+```
 
 **POST /checkout/create-payment-intent**
 ```json
 {
-  "items": [{ "productId": "...", "variantId": "...", "quantity": 2, "price": 120.00 }],
-  "shippingAddressId": "...",
-  "couponCode": "LADYB20",
-  "giftCardCode": "..."
+  "items": [
+    { "productId": "...", "variantId": "...", "quantity": 2 }
+  ],
+  "shippingAddress": {
+    "firstName": "Grace", "lastName": "Adeyemi",
+    "email": "grace@example.com",
+    "phone": "+13175551234",
+    "address1": "123 Main St", "address2": "Apt 4B",
+    "city": "Indianapolis", "state": "IN",
+    "postalCode": "46201", "country": "US"
+  },
+  "shippingMethodId": "standard",
+  "couponCode": "LADYB20"
 }
 ```
 Response `data`: `{ clientSecret: string, orderId: string, amount: number }`
 
----
-
-## 13. Orders  `/orders`
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/orders/:orderId` | ✅ | Get a specific order (checkout success page) |
+**POST /checkout/confirm** — Called after `stripe.confirmCardPayment` succeeds
+```json
+{ "orderId": "...", "paymentIntentId": "pi_..." }
+```
 
 ---
 
-## 14. Uploads  `/upload`
+## 16. Orders (Public)
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/upload/images` | Admin | Upload product / collection images |
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 35 | GET | `/orders/:orderId` | ✅ | Get order detail (checkout success page) |
 
-**POST /upload/images** — `multipart/form-data`, field: `images[]`  
-Response `data`: `{ images: [{ id: string, url: string, altText: string }] }`
-
----
+Response `data`: Full `Order` object (see shape in §47)
 
 ---
 
-## 15. Account Routes  `/account`  *(all require authentication)*
+## 17. Uploads
 
-### Profile
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 36 | POST | `/upload/images` | Admin | Upload one or more product/collection images |
+| 37 | POST | `/upload/avatar` | ✅ Customer | Upload user avatar (AccountProfile has TODO for this) |
 
-| Method | Path | Description |
-|--------|------|-------------|
-| PATCH | `/account/profile` | Update name, phone, avatar |
-| PATCH | `/account/password` | Change password (requires currentPassword) |
+**POST /upload/images** — `multipart/form-data`, field: `images[]` (max 10 files, 5MB each)
+Response `data`: `{ images: [{ id: string, url: string, altText: string, width: number, height: number }] }`
+
+**POST /upload/avatar** — `multipart/form-data`, field: `avatar`
+Response `data`: `{ avatarUrl: string }`
+
+---
+
+## 18. Account — Profile
+
+> All `/account/*` require `Authorization: Bearer <accessToken>`
+
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 38 | PATCH | `/account/profile` | Update name, phone |
+| 39 | POST  | `/account/avatar` | Upload new avatar image |
+| 40 | PATCH | `/account/password` | Change password (requires current password) |
 
 **PATCH /account/profile**
 ```json
-{ "firstName": "Grace", "lastName": "Adeyemi", "phone": "+1234567890", "avatarUrl": "..." }
+{ "firstName": "Grace", "lastName": "Adeyemi", "phone": "+13175551234" }
 ```
+
+**POST /account/avatar** — `multipart/form-data`, field: `avatar`
+Response `data`: `{ avatarUrl: string }`
 
 **PATCH /account/password**
 ```json
-{ "currentPassword": "...", "newPassword": "..." }
+{ "currentPassword": "OldPassword1!", "newPassword": "NewPassword2!" }
 ```
 
 ---
 
-### Dashboard
+## 19. Account — Dashboard
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/account/dashboard` | Summary stats for account home |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 41 | GET | `/account/dashboard` | Summary: recent orders, stats, loyalty points |
 
 Response `data`:
 ```json
 {
   "recentOrders": Order[],
-  "totalOrders": 12,
-  "totalSpent": 2400.00,
-  "wishlistCount": 5,
-  "activeCustomOrders": 1,
-  "loyaltyPoints": 240
+  "stats": {
+    "totalOrders": 12,
+    "totalSpent": 2400.00,
+    "wishlistCount": 5,
+    "activeCustomOrders": 1
+  },
+  "loyaltyPoints": 240,
+  "memberSince": "2023-04-01T00:00:00Z"
 }
 ```
 
 ---
 
-### Orders
+## 20. Account — Orders
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/account/orders` | Paginated order history |
-| GET | `/account/orders/:orderId` | Full order detail |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 42 | GET | `/account/orders` | Paginated order history |
+| 43 | GET | `/account/orders/:orderId` | Full order detail with line items |
 
-**GET /account/orders** query params: `page, limit, status, q`
+**GET /account/orders** query params: `page`, `limit`, `status`, `q` (order number search)
 
 Response `data`: `{ orders: Order[], total: number, page: number, totalPages: number }`
 
 ---
 
-### Addresses
+## 21. Account — Addresses
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/account/addresses` | List saved addresses |
-| POST | `/account/addresses` | Add address |
-| PATCH | `/account/addresses/:id` | Update address |
-| DELETE | `/account/addresses/:id` | Delete address |
-| PATCH | `/account/addresses/:id` (body `isDefault: true`) | Set as default |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 44 | GET    | `/account/addresses` | List all saved addresses |
+| 45 | POST   | `/account/addresses` | Add new address |
+| 46 | PATCH  | `/account/addresses/:id` | Update existing address |
+| 47 | DELETE | `/account/addresses/:id` | Delete address |
+| 48 | PATCH  | `/account/addresses/:id` (body `{ isDefault: true }`) | Set as default |
 
-**Address body**
+**Address body (POST / PATCH)**
 ```json
 {
   "label": "Home",
@@ -365,49 +572,59 @@ Response `data`: `{ orders: Order[], total: number, page: number, totalPages: nu
 
 ---
 
-### Wishlist
+## 22. Account — Wishlist
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/account/wishlist` | Get wishlist items (supports `?limit=1` for count) |
-| POST | `/account/wishlist` | Add product to wishlist |
-| DELETE | `/account/wishlist/:itemId` | Remove from wishlist |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 49 | GET    | `/account/wishlist` | List wishlist items (supports `?limit=1` for badge count) |
+| 50 | POST   | `/account/wishlist` | Add product to wishlist |
+| 51 | DELETE | `/account/wishlist/:itemId` | Remove item from wishlist |
 
-Response `data`: `{ items: WishlistItem[], total: number }`
+**POST /account/wishlist**
+```json
+{ "productId": "...", "variantId": "..." }
+```
 
----
-
-### Custom Orders (Account view)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/account/custom-orders` | List customer's custom order requests |
-
-Query params: `page, limit`
+Response `data` (GET): `{ items: WishlistItem[], total: number }`
 
 ---
 
-### Payment Methods / Billing
+## 23. Account — Custom Orders
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/account/payment-methods` | List saved Stripe payment methods |
-| POST | `/account/payment-methods/setup-intent` | Create Stripe SetupIntent for saving a card |
-| PATCH | `/account/payment-methods/:id/default` | Set default payment method |
-| DELETE | `/account/payment-methods/:id` | Remove saved card |
-| GET | `/account/invoices` | List past invoices / receipts |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 52 | GET | `/account/custom-orders` | List customer's bespoke requests |
 
-**POST /account/payment-methods/setup-intent**  
+Query params: `page`, `limit`
+
+Response `data`: `{ requests: CustomOrder[], total: number, page: number, totalPages: number }`
+
+---
+
+## 24. Account — Billing & Payment Methods
+
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 53 | GET    | `/account/payment-methods` | List saved Stripe payment methods |
+| 54 | POST   | `/account/payment-methods/setup-intent` | Create Stripe SetupIntent (for saving a new card) |
+| 55 | PATCH  | `/account/payment-methods/:id/default` | Set as default payment method |
+| 56 | DELETE | `/account/payment-methods/:id` | Remove saved card |
+| 57 | GET    | `/account/invoices` | List past invoices / receipts |
+
+**POST /account/payment-methods/setup-intent**
 Response `data`: `{ clientSecret: string }`
 
+**GET /account/invoices** — paginated
+Response `data`: `{ invoices: Invoice[], total: number }`
+
 ---
 
-### Settings
+## 25. Account — Settings
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/account/settings` | Get notification and preference settings |
-| PATCH | `/account/settings` | Update settings |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 58 | GET   | `/account/settings` | Get notification and preference settings |
+| 59 | PATCH | `/account/settings` | Update settings |
 
 **PATCH /account/settings**
 ```json
@@ -422,68 +639,74 @@ Response `data`: `{ clientSecret: string }`
 
 ---
 
----
+## 26. Admin — Dashboard
 
-## 16. Admin Routes  `/admin`  *(all require ADMIN or SUPER_ADMIN role)*
+> All `/admin/*` require `Authorization: Bearer <token>` + role `ADMIN | SUPER_ADMIN`
 
-### Dashboard
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/dashboard` | Sales stats, recent orders, low stock, top products |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 60 | GET | `/admin/dashboard` | KPIs, chart data, recent activity |
 
 Response `data`:
 ```json
 {
   "revenue": { "today": 0, "week": 0, "month": 0, "allTime": 0 },
-  "orders": { "pending": 0, "processing": 0, "total": 0 },
-  "customers": { "total": 0, "new": 0 },
+  "orders": { "pending": 0, "processing": 0, "shipped": 0, "total": 0 },
+  "customers": { "total": 0, "newThisMonth": 0 },
   "products": { "total": 0, "lowStock": 0, "outOfStock": 0 },
   "recentOrders": Order[],
-  "topProducts": Product[],
-  "revenueChart": [{ "date": "2024-01-01", "revenue": 0 }]
+  "topProducts": [{ "product": Product, "sold": 24, "revenue": 6720 }],
+  "revenueChart": [{ "date": "2024-01-01", "revenue": 0, "orders": 0 }],
+  "pendingCustomOrders": 3,
+  "unreadMessages": 7
 }
 ```
 
 ---
 
-### Products (Admin)
+## 27. Admin — Products
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/products` | List all products (any status) |
-| GET | `/admin/products/:id` | Get product with full detail (variants, images, inventory) |
-| POST | `/admin/products` | Create product |
-| PATCH | `/admin/products/:id` | Update product |
-| DELETE | `/admin/products/:id` | Delete product |
-| PATCH | `/admin/products/:id/stock` | Update stock quantity |
-| DELETE | `/admin/products/:id/images/:imageId` | Remove a product image |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 61 | GET    | `/admin/products` | List all products (any status, with stock) |
+| 62 | GET    | `/admin/products/:id` | Full product with variants, images, inventory history |
+| 63 | POST   | `/admin/products` | Create product |
+| 64 | PATCH  | `/admin/products/:id` | Update product |
+| 65 | DELETE | `/admin/products/:id` | Delete product (soft delete) |
+| 66 | PATCH  | `/admin/products/:id/publish` | Publish draft |
+| 67 | PATCH  | `/admin/products/:id/archive` | Archive product |
+| 68 | PATCH  | `/admin/products/:id/stock` | Update stock quantity |
+| 69 | DELETE | `/admin/products/:id/images/:imageId` | Remove a product image |
+| 70 | PATCH  | `/admin/products/:id/images/reorder` | Reorder product images |
 
-**GET /admin/products** query params: `page, limit, q, status, lowStock`
+**GET /admin/products** query params: `page`, `limit`, `q`, `status`, `lowStock` (boolean)
 
-**POST / PATCH /admin/products** body:
+**POST / PATCH /admin/products body:**
 ```json
 {
   "name": "Cobalt Evening Clutch",
   "slug": "cobalt-evening-clutch",
-  "description": "...",
-  "price": 280.00,
-  "compareAtPrice": 340.00,
+  "description": "A statement piece in cobalt Japanese seed beads...",
+  "price": 28000,
+  "compareAtPrice": 34000,
   "status": "DRAFT",
   "categoryId": "...",
   "collectionIds": ["..."],
-  "images": [{ "url": "...", "altText": "...", "position": 0 }],
-  "variants": [{ "name": "Navy", "price": 280, "stock": 5, "isAvailable": true }],
-  "stock": 10,
+  "images": [{ "url": "...", "altText": "Cobalt clutch front view", "position": 0 }],
+  "variants": [
+    { "name": "Navy", "price": 28000, "stock": 3, "isAvailable": true },
+    { "name": "Cobalt", "price": 28000, "stock": 5, "isAvailable": true }
+  ],
+  "stock": 8,
   "isMadeToOrder": false,
   "madeToOrderLeadDays": null,
   "isNewArrival": true,
-  "materials": "Japanese seed beads, brass clasp",
-  "dimensions": "10 x 6 inches",
-  "careInstructions": "...",
-  "craftDetails": "...",
-  "seoTitle": "...",
-  "seoDescription": "..."
+  "materials": "Premium Japanese seed beads, brass arch frame, silk lining",
+  "dimensions": "10 x 6 x 2 inches",
+  "careInstructions": "Store in dust bag. Avoid moisture and direct sunlight.",
+  "craftDetails": "Each bead hand-strung over 40+ hours",
+  "seoTitle": "Cobalt Evening Clutch | Lady B Designs",
+  "seoDescription": "Hand-beaded cobalt clutch bag..."
 }
 ```
 
@@ -492,24 +715,29 @@ Response `data`:
 { "stockQuantity": 15 }
 ```
 
+**PATCH /admin/products/:id/images/reorder**
+```json
+{ "imageIds": ["id1", "id2", "id3"] }
+```
+
 ---
 
-### Collections (Admin)
+## 28. Admin — Collections
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/collections` | List all collections |
-| POST | `/admin/collections` | Create collection |
-| PATCH | `/admin/collections/:id` | Update collection |
-| DELETE | `/admin/collections/:id` | Delete collection |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 71 | GET    | `/admin/collections` | List all collections |
+| 72 | POST   | `/admin/collections` | Create collection |
+| 73 | PATCH  | `/admin/collections/:id` | Update collection |
+| 74 | DELETE | `/admin/collections/:id` | Delete collection |
 
 **POST / PATCH body:**
 ```json
 {
   "name": "Evening Edit",
   "slug": "evening-edit",
-  "description": "...",
-  "image": "...",
+  "description": "Pieces for the woman who dresses with intention...",
+  "image": "https://cloudinary.com/...",
   "status": "ACTIVE",
   "isFeatured": true
 }
@@ -517,14 +745,14 @@ Response `data`:
 
 ---
 
-### Categories (Admin)
+## 29. Admin — Categories
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/categories` | List all categories |
-| POST | `/admin/categories` | Create category |
-| PATCH | `/admin/categories/:id` | Update category |
-| DELETE | `/admin/categories/:id` | Delete category |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 75 | GET    | `/admin/categories` | List all categories |
+| 76 | POST   | `/admin/categories` | Create category |
+| 77 | PATCH  | `/admin/categories/:id` | Update category |
+| 78 | DELETE | `/admin/categories/:id` | Delete category |
 
 **POST / PATCH body:**
 ```json
@@ -533,15 +761,15 @@ Response `data`:
 
 ---
 
-### Orders (Admin)
+## 30. Admin — Orders
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/orders` | List all orders |
-| GET | `/admin/orders/:id` | Full order detail |
-| PATCH | `/admin/orders/:id` | Update order status / tracking |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 79 | GET   | `/admin/orders` | Paginated order list |
+| 80 | GET   | `/admin/orders/:id` | Full order with items, customer, shipping |
+| 81 | PATCH | `/admin/orders/:id` | Update status, tracking, notes |
 
-**GET /admin/orders** query params: `page, limit, q, status`
+**GET /admin/orders** query params: `page`, `limit`, `q`, `status`
 
 **PATCH /admin/orders/:id**
 ```json
@@ -549,43 +777,48 @@ Response `data`:
   "status": "SHIPPED",
   "trackingNumber": "1Z999AA10123456784",
   "trackingCarrier": "UPS",
-  "notes": "..."
+  "notes": "Customer requested signature on delivery"
 }
 ```
 
 ---
 
-### Custom Orders (Admin)
+## 31. Admin — Custom Orders
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/custom-orders` | List all bespoke requests |
-| GET | `/admin/custom-orders/:id` | Full bespoke request detail |
-| PATCH | `/admin/custom-orders/:id` | Update status, price, notes |
-| POST | `/admin/custom-orders/:id/messages` | Send message to customer |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 82 | GET   | `/admin/custom-orders` | Paginated bespoke request list |
+| 83 | GET   | `/admin/custom-orders/:id` | Full request with messages + timeline |
+| 84 | PATCH | `/admin/custom-orders/:id` | Update status, price, notes |
+| 85 | POST  | `/admin/custom-orders/:id/messages` | Send message to customer |
 
-**GET /admin/custom-orders** query params: `page, limit, q, status`
+**GET /admin/custom-orders** query params: `page`, `limit`, `q`, `status`
 
 **PATCH /admin/custom-orders/:id**
 ```json
-{ "status": "IN_PROGRESS", "quotedPrice": 450.00, "estimatedCompletionDate": "2024-12-01", "notes": "..." }
+{
+  "status": "QUOTED",
+  "quotedPrice": 45000,
+  "estimatedCompletionDate": "2024-12-15",
+  "notes": "Customer approved cobalt blue with gold thread"
+}
 ```
 
 **POST /admin/custom-orders/:id/messages**
 ```json
-{ "content": "Your piece is ready for review..." }
+{ "content": "Your piece is now in the beading phase. Expected completion in 3 weeks." }
 ```
 
 ---
 
-### Customers (Admin)
+## 32. Admin — Customers
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/customers` | List all customers |
-| PATCH | `/admin/customers/:id` | Ban / unban customer |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 86 | GET   | `/admin/customers` | Paginated customer list with order stats |
+| 87 | PATCH | `/admin/customers/:id` | Ban / unban customer |
 
-**GET /admin/customers** query params: `page, limit, q`
+**GET /admin/customers** query params: `page`, `limit`, `q`
 
 **PATCH /admin/customers/:id**
 ```json
@@ -594,15 +827,15 @@ Response `data`:
 
 ---
 
-### Reviews (Admin)
+## 33. Admin — Reviews
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/reviews` | List all reviews |
-| PATCH | `/admin/reviews/:id` | Approve / reject review |
-| DELETE | `/admin/reviews/:id` | Delete review |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 88 | GET    | `/admin/reviews` | Paginated review list |
+| 89 | PATCH  | `/admin/reviews/:id` | Approve or reject review |
+| 90 | DELETE | `/admin/reviews/:id` | Delete review |
 
-**GET /admin/reviews** query params: `page, limit, q, status (PENDING|APPROVED|REJECTED)`
+**GET /admin/reviews** query params: `page`, `limit`, `q`, `status` (PENDING\|APPROVED\|REJECTED)
 
 **PATCH /admin/reviews/:id**
 ```json
@@ -611,14 +844,14 @@ Response `data`:
 
 ---
 
-### Coupons (Admin)
+## 34. Admin — Coupons
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/coupons` | List all coupons |
-| POST | `/admin/coupons` | Create coupon |
-| PATCH | `/admin/coupons/:id` | Update coupon |
-| DELETE | `/admin/coupons/:id` | Delete coupon |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 91 | GET    | `/admin/coupons` | List all coupons |
+| 92 | POST   | `/admin/coupons` | Create coupon |
+| 93 | PATCH  | `/admin/coupons/:id` | Update coupon |
+| 94 | DELETE | `/admin/coupons/:id` | Delete coupon |
 
 **POST / PATCH body:**
 ```json
@@ -626,45 +859,45 @@ Response `data`:
   "code": "LADYB20",
   "type": "PERCENTAGE",
   "value": 20,
-  "minOrderAmount": 100,
+  "minOrderAmount": 10000,
   "maxUses": 500,
   "usedCount": 0,
+  "isActive": true,
   "startsAt": "2024-01-01T00:00:00Z",
-  "expiresAt": "2024-12-31T23:59:59Z",
-  "isActive": true
+  "expiresAt": "2024-12-31T23:59:59Z"
 }
 ```
 
+> All monetary values are stored in **cents** (integer). $100.00 → `10000`.
+
 ---
 
-### Newsletter (Admin)
+## 35. Admin — Newsletter
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/newsletter` | List all subscribers |
-| POST | `/admin/newsletter/broadcast` | Send broadcast email to all subscribers |
-| GET | `/admin/newsletter/export` | Download subscriber CSV (blob response) |
-| DELETE | `/admin/newsletter/:id` | Unsubscribe / delete subscriber |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 95 | GET    | `/admin/newsletter` | Paginated subscriber list |
+| 96 | POST   | `/admin/newsletter/broadcast` | Send broadcast email to all subscribers |
+| 97 | GET    | `/admin/newsletter/export` | Download CSV (blob response) |
+| 98 | DELETE | `/admin/newsletter/:id` | Unsubscribe / delete subscriber |
 
-**GET /admin/newsletter** query params: `page, limit, q`
+**GET /admin/newsletter** query params: `page`, `limit`, `q`
 
 **POST /admin/newsletter/broadcast**
 ```json
-{ "subject": "New Collection Drop", "body": "<p>HTML content...</p>" }
+{ "subject": "New Collection Drop — The Ivory Edit", "body": "<p>HTML email content...</p>" }
 ```
 
 ---
 
-### Contact Messages (Admin)
+## 36. Admin — Contact Messages
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/contact-messages` | List all contact form submissions |
-| PATCH | `/admin/contact-messages/:id` | Mark as read |
-| POST | `/admin/contact-messages/:id/reply` | Send reply email to sender |
-| DELETE | `/admin/contact-messages/:id` | Delete message |
-
-**GET /admin/contact-messages** query params: `page, limit, q`
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 99  | GET    | `/admin/contact-messages` | List all contact form submissions |
+| 100 | PATCH  | `/admin/contact-messages/:id` | Mark as read |
+| 101 | POST   | `/admin/contact-messages/:id/reply` | Send reply email to sender |
+| 102 | DELETE | `/admin/contact-messages/:id` | Delete message |
 
 **PATCH /admin/contact-messages/:id**
 ```json
@@ -673,19 +906,17 @@ Response `data`:
 
 **POST /admin/contact-messages/:id/reply**
 ```json
-{ "body": "Thank you for your message..." }
+{ "body": "Thank you for reaching out, Grace. Regarding your enquiry..." }
 ```
 
 ---
 
-### Wholesale Enquiries (Admin)
+## 37. Admin — Wholesale
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/wholesale` | List wholesale applications |
-| PATCH | `/admin/wholesale/:id` | Update status |
-
-**GET /admin/wholesale** query params: `page, limit, q`
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 103 | GET   | `/admin/wholesale` | Paginated wholesale applications |
+| 104 | PATCH | `/admin/wholesale/:id` | Update application status |
 
 **PATCH /admin/wholesale/:id**
 ```json
@@ -694,12 +925,12 @@ Response `data`:
 
 ---
 
-### Press Enquiries (Admin)
+## 38. Admin — Press
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/press` | List press enquiries |
-| PATCH | `/admin/press/:id` | Update status |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 105 | GET   | `/admin/press` | Paginated press enquiries |
+| 106 | PATCH | `/admin/press/:id` | Update enquiry status |
 
 **PATCH /admin/press/:id**
 ```json
@@ -708,143 +939,306 @@ Response `data`:
 
 ---
 
-### Inventory (Admin)
+## 39. Admin — Journal (CMS)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/products` | Reused — filtered with `?lowStock=true` |
-| PATCH | `/admin/products/:id/stock` | Update stock |
+> No admin journal UI exists in the current FE — these endpoints power a future admin journal page.
+> The public `GET /journal` and `GET /journal/:slug` already need this data.
+
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 107 | GET    | `/admin/journal` | List all posts (any status) |
+| 108 | POST   | `/admin/journal` | Create journal post |
+| 109 | GET    | `/admin/journal/:id` | Get post by ID |
+| 110 | PATCH  | `/admin/journal/:id` | Update post |
+| 111 | DELETE | `/admin/journal/:id` | Delete post |
+| 112 | PATCH  | `/admin/journal/:id/publish` | Publish draft |
+| 113 | PATCH  | `/admin/journal/:id/unpublish` | Revert to draft |
+
+**POST / PATCH body:**
+```json
+{
+  "title": "The Art of Bead Selection",
+  "slug": "art-of-bead-selection",
+  "excerpt": "How we choose every bead that goes into a Lady B piece.",
+  "body": "<p>HTML article content...</p>",
+  "coverImage": "https://cloudinary.com/...",
+  "category": "Craft",
+  "tags": ["beadwork", "process", "artisan"],
+  "readTimeMinutes": 5,
+  "status": "DRAFT",
+  "publishedAt": null,
+  "author": { "name": "Lady B", "role": "Designer & Founder", "avatar": "..." }
+}
+```
 
 ---
 
-### Settings (Admin)
+## 40. Admin — Inventory
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/settings` | Get global site settings |
-| PATCH | `/admin/settings` | Update site settings |
+> Reuses `/admin/products` — inventory page filters with `?lowStock=true`
+
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 114 | GET   | `/admin/products?lowStock=true` | Low-stock product list (reused) |
+| 115 | PATCH | `/admin/products/:id/stock` | Bulk or individual stock update (reused) |
+
+---
+
+## 41. Admin — Gift Cards
+
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 116 | GET   | `/admin/gift-cards` | List all issued gift cards |
+| 117 | GET   | `/admin/gift-cards/:id` | Get gift card detail + redemption history |
+| 118 | PATCH | `/admin/gift-cards/:id` | Deactivate / adjust balance |
+
+---
+
+## 42. Admin — Settings
+
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 119 | GET   | `/admin/settings` | Get full site configuration |
+| 120 | PATCH | `/admin/settings` | Update site configuration |
 
 **PATCH /admin/settings**
 ```json
 {
   "siteName": "Lady B Designs and Handcraft",
   "siteTagline": "Wearable Art, Crafted by Hand",
-  "contactEmail": "...",
-  "contactPhone": "...",
-  "address": "...",
-  "freeShippingThreshold": 250,
+  "contactEmail": "hello@ladybdesigns.com",
+  "contactPhone": "+1 (317) 333-1333",
+  "address": "Indianapolis, Indiana, USA",
+  "freeShippingThreshold": 25000,
   "currency": "USD",
-  "metaTitle": "...",
+  "announcementText": "Free shipping on orders over $250 · Bespoke commissions open",
+  "announcementEnabled": true,
+  "maintenanceMode": false,
+  "metaTitle": "Lady B Designs | Luxury Artisan Fashion",
   "metaDescription": "...",
-  "socialInstagram": "...",
-  "socialFacebook": "...",
-  "socialPinterest": "...",
-  "maintenanceMode": false
+  "socialInstagram": "https://instagram.com/...",
+  "socialFacebook": "https://facebook.com/...",
+  "socialPinterest": "https://pinterest.com/...",
+  "stripePublicKey": "pk_live_...",
+  "googleAnalyticsId": "G-XXXXXXXX"
 }
 ```
 
 ---
 
-### Audit Logs (Admin)
+## 43. Admin — Audit Logs
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/admin/audit-logs` | List admin action audit trail |
+| # | Method | Path | Description |
+|---|--------|------|-------------|
+| 121 | GET | `/admin/audit-logs` | Admin action audit trail |
 
-**GET /admin/audit-logs** query params: `page, limit, q`
+**GET /admin/audit-logs** query params: `page`, `limit`, `q` (search by admin email / action)
 
----
-
----
-
-## 17. Standard Response Shapes
-
-### Paginated list
+Response `data`:
 ```json
 {
-  "success": true,
-  "data": {
-    "items": [],
-    "total": 100,
-    "page": 1,
-    "totalPages": 10,
-    "limit": 10
+  "logs": [{
+    "id": "...", "adminId": "...", "admin": { "email": "...", "firstName": "..." },
+    "action": "UPDATE_ORDER_STATUS", "targetId": "...", "targetType": "ORDER",
+    "changes": { "status": { "from": "PROCESSING", "to": "SHIPPED" } },
+    "createdAt": "..."
+  }],
+  "total": 340, "page": 1, "totalPages": 34
+}
+```
+
+---
+
+## 44. Webhooks
+
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 122 | POST | `/webhooks/stripe` | Stripe-Signature header | Handle all Stripe events |
+
+**Events to handle:**
+- `payment_intent.succeeded` → mark order PROCESSING, clear cart
+- `payment_intent.payment_failed` → mark order FAILED, notify customer
+- `customer.subscription.deleted` → (future subscription products)
+- `invoice.paid` → record invoice
+- `setup_intent.succeeded` → save payment method to customer
+
+> **Never** use `req.body` after `express.json()` for this route — use raw buffer for Stripe signature verification.
+
+---
+
+## 45. Health Check
+
+| # | Method | Path | Auth | Description |
+|---|--------|------|------|-------------|
+| 123 | GET | `/health` | — | Service health (used by docker compose healthcheck) |
+
+Response:
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-06-11T09:00:00.000Z",
+  "services": {
+    "database": "ok",
+    "redis": "ok"
   }
 }
 ```
 
-### User object
-```json
-{
-  "id": "...", "email": "...", "firstName": "...", "lastName": "...",
-  "role": "CUSTOMER | ADMIN | SUPER_ADMIN",
-  "isEmailVerified": true, "isActive": true,
-  "avatarUrl": null, "phone": null,
-  "createdAt": "...", "updatedAt": "..."
-}
-```
+---
 
-### Order object
-```json
-{
-  "id": "...", "orderNumber": "LB-2024-0001",
-  "status": "PENDING | PROCESSING | SHIPPED | DELIVERED | CANCELLED | REFUNDED",
-  "items": [{ "id": "...", "product": {}, "variant": {}, "quantity": 1, "price": 280 }],
-  "subtotal": 280, "discount": 0, "shipping": 0, "tax": 0, "total": 280,
-  "shippingAddress": {}, "trackingNumber": null, "trackingCarrier": null,
-  "createdAt": "...", "updatedAt": "..."
-}
-```
+## 46. Middleware Reference
+
+| Middleware | Description | Applied To |
+|-----------|-------------|-----------|
+| `authenticate` | Verify JWT, attach `req.user` | All protected routes |
+| `requireAdmin` | Require role `ADMIN \| SUPER_ADMIN` | All `/admin/*` |
+| `authRateLimit` | 5 req / 15 min per IP | `/auth/register`, `/auth/login`, `/auth/forgot-password`, `/auth/resend-verification` |
+| `validate(schema, target?)` | Zod validation — body (default) or `'query'` | All routes with input |
+| `upload` | Multer multipart | `/upload/*`, `/account/avatar` |
+| `pagination` | Parse `page` + `limit` → `skip` + `take` | All list endpoints |
+| `rawBody` | Preserve raw buffer for Stripe signature | `/webhooks/stripe` |
 
 ---
 
-## 18. HTTP Status Codes Used
+## 47. Response Shape Reference
+
+### User
+```json
+{
+  "id": "cuid", "email": "...", "firstName": "Grace", "lastName": "Adeyemi",
+  "role": "CUSTOMER | ADMIN | SUPER_ADMIN",
+  "isEmailVerified": true, "isActive": true,
+  "avatarUrl": null, "phone": "+13175551234",
+  "createdAt": "ISO8601", "updatedAt": "ISO8601"
+}
+```
+
+### Product
+```json
+{
+  "id": "cuid", "name": "Cobalt Evening Clutch", "slug": "cobalt-evening-clutch",
+  "description": "...", "price": 28000, "compareAtPrice": 34000,
+  "status": "ACTIVE | DRAFT | ARCHIVED",
+  "stock": 8, "isMadeToOrder": false, "madeToOrderLeadDays": null,
+  "isNewArrival": true,
+  "images": [{ "id": "...", "url": "...", "altText": "...", "position": 0 }],
+  "variants": [{ "id": "...", "name": "Navy", "price": 28000, "stock": 3, "isAvailable": true }],
+  "category": { "id": "...", "name": "Clutch Bags", "slug": "clutch-bags" },
+  "materials": "...", "dimensions": "...", "careInstructions": "...", "craftDetails": "...",
+  "seoTitle": "...", "seoDescription": "...",
+  "_count": { "reviews": 14 },
+  "createdAt": "ISO8601", "updatedAt": "ISO8601"
+}
+```
+
+### Order
+```json
+{
+  "id": "cuid", "orderNumber": "LB-2024-0001",
+  "status": "PENDING | PROCESSING | SHIPPED | DELIVERED | CANCELLED | REFUNDED",
+  "items": [{
+    "id": "...", "quantity": 1, "price": 28000,
+    "product": { "id": "...", "name": "...", "slug": "...", "images": [] },
+    "variant": { "id": "...", "name": "Navy" }
+  }],
+  "subtotal": 28000, "discount": 0, "shippingCost": 1299, "tax": 0, "total": 29299,
+  "couponCode": null,
+  "shippingAddress": { "firstName": "...", "line1": "...", "city": "...", "country": "US" },
+  "trackingNumber": null, "trackingCarrier": null,
+  "paymentIntentId": "pi_...",
+  "createdAt": "ISO8601", "updatedAt": "ISO8601"
+}
+```
+
+### CustomOrder
+```json
+{
+  "id": "cuid",
+  "status": "SUBMITTED | REVIEWING | QUOTED | IN_PROGRESS | COMPLETED | CANCELLED",
+  "bagStyle": "clutch", "primaryColor": "cobalt blue",
+  "occasion": "Wedding", "budget": 35000,
+  "quotedPrice": null, "estimatedCompletionDate": null,
+  "messages": [], "timeline": [],
+  "createdAt": "ISO8601"
+}
+```
+
+> **All monetary values are in cents.** `28000` = $280.00. This avoids floating-point precision errors.
+
+---
+
+## 48. Status Codes
 
 | Code | Meaning |
 |------|---------|
 | 200 | Success (GET, PATCH) |
 | 201 | Created (POST) |
 | 204 | No Content (DELETE) |
-| 400 | Validation error |
-| 401 | Missing / invalid token |
-| 403 | Insufficient role |
+| 400 | Validation error — return `errors` object |
+| 401 | Missing or invalid token |
+| 403 | Insufficient role / action not permitted |
 | 404 | Resource not found |
-| 409 | Conflict (duplicate email, slug) |
-| 422 | Business rule violation (e.g. coupon expired) |
+| 409 | Conflict (duplicate email, slug, coupon code) |
+| 422 | Business rule violation (coupon expired, out of stock at checkout) |
 | 429 | Rate limited |
-| 500 | Internal server error |
+| 500 | Unhandled server error |
 
 ---
 
-## 19. Middleware Required
+## 49. Total Endpoint Count
 
-- `authenticate` — verify JWT, attach `req.user`
-- `requireAdmin` — require role `ADMIN | SUPER_ADMIN`
-- `authRateLimit` — strict rate limit on login/register/forgot-password
-- `validate(schema, target?)` — Zod schema validation (body or query)
-- `upload` — multer for image uploads
-- `pagination` — parse `page` + `limit` query params into skip/take
-
----
-
-## 20. Endpoints Summary Count
-
-| Domain | Endpoints |
-|--------|-----------|
-| Auth | 7 |
-| Products | 11 |
+| Domain | Count |
+|--------|-------|
+| Auth | 9 |
+| Products (public) | 6 |
 | Categories | 1 |
 | Collections | 2 |
 | Reviews | 1 |
 | Coupons | 1 |
 | Newsletter | 1 |
-| Gift Cards | 1 |
-| Journal | 2 |
+| Gift Cards | 2 |
+| Journal (public) | 2 |
+| FAQ | 1 |
 | Contact | 1 |
+| Wholesale | 1 |
+| Press | 1 |
 | Custom Orders (public) | 2 |
-| Checkout | 1 |
-| Orders | 1 |
-| Uploads | 1 |
-| Account | 17 |
-| Admin | 42 |
-| **Total** | **92** |
+| Checkout | 3 |
+| Orders (public) | 1 |
+| Uploads | 2 |
+| Account (17 routes) | 17 |
+| Admin — Dashboard | 1 |
+| Admin — Products | 10 |
+| Admin — Collections | 4 |
+| Admin — Categories | 4 |
+| Admin — Orders | 3 |
+| Admin — Custom Orders | 4 |
+| Admin — Customers | 2 |
+| Admin — Reviews | 3 |
+| Admin — Coupons | 4 |
+| Admin — Newsletter | 4 |
+| Admin — Contact Messages | 4 |
+| Admin — Wholesale | 2 |
+| Admin — Press | 2 |
+| Admin — Journal (CMS) | 7 |
+| Admin — Gift Cards | 3 |
+| Admin — Settings | 2 |
+| Admin — Audit Logs | 1 |
+| Webhooks | 1 |
+| Health Check | 1 |
+| **TOTAL** | **123** |
+
+---
+
+## Notes for Backend Build
+
+1. **Money in cents** — store and return all prices as integers (cents). The frontend uses `formatCurrency` which expects cents.
+2. **Slugs** — auto-generate from name on create if not provided. Enforce uniqueness per model.
+3. **Images** — integrate Cloudinary (or S3). Store URL + public_id. Return full URL in responses.
+4. **Email** — use Nodemailer or Resend. Required for: order confirmation, password reset, custom order messages, newsletter broadcast, gift card delivery, contact reply.
+5. **Stripe** — payment intents for checkout, setup intents for saving cards. Store `paymentIntentId` on orders.
+6. **Redis** — use for: refresh token blacklist (logout), rate limiting, session caching.
+7. **Prisma** — relations needed: User → Orders, User → Addresses, User → Wishlist, Product → Images, Product → Variants, Product → Reviews, Order → OrderItems, Collection ↔ Products (many-to-many).
+8. **Fake stubs to replace** — ContactPage, WholesalePage, PressPage all have `await new Promise(r => setTimeout(r, 1200))` fake delays. Wire to real API calls once endpoints exist.
+9. **JWT** — access token: 15 min, refresh token: 7 days. Refresh tokens stored in Redis (invalidated on logout).
+10. **Roles** — `CUSTOMER`, `ADMIN`, `SUPER_ADMIN`. Admin routes require `ADMIN | SUPER_ADMIN`. Some admin actions (delete admin users, change roles) require `SUPER_ADMIN` only.
