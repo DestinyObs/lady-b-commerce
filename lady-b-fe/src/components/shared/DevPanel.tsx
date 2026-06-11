@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { api } from '../../lib/axios';
@@ -14,8 +13,6 @@ const E = {
 
 export function DevPanel() {
   const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
   const { login, logout, isAuthenticated } = useAuthStore();
 
   const mutation = useMutation({
@@ -27,7 +24,7 @@ export function DevPanel() {
         ? '/admin'
         : '/account';
       toast.success(`Signed in as ${vars.email}`);
-      navigate(dest);
+      window.location.assign(dest);
       setOpen(false);
     },
     onError: () => toast.error('Dev login failed — run seed first'),
