@@ -7,7 +7,7 @@ const SHOP_LINKS = [
   { label: 'Bead Bags', href: '/collections/bead-bags' },
   { label: 'Necklaces', href: '/collections/necklaces' },
   { label: 'Accessories', href: '/collections/accessories' },
-  { label: 'Custom Orders', href: '/custom-orders' },
+  { label: 'Bespoke', href: '/bespoke' },
   { label: 'Gift Cards', href: '/gift-cards' },
 ];
 
@@ -47,7 +47,7 @@ export function Footer() {
             <p className="text-ivory/60 text-sm font-body font-light leading-relaxed mb-8">
               Be first to know. New collections, bespoke availability, exclusive events, and stories from the atelier — for women who understand that true luxury is made by hand.
             </p>
-            <form className="flex flex-col sm:flex-row gap-3">
+            <form className="flex flex-col sm:flex-row gap-3" onSubmit={(e) => e.preventDefault()}>
               <input
                 type="email"
                 placeholder="Your email address"
@@ -68,10 +68,11 @@ export function Footer() {
       {/* Main footer */}
       <div className="container-luxury py-16 md:py-20">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 lg:gap-16">
+          {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <div className="mb-6">
               <span className="font-serif font-light tracking-luxury text-base uppercase">Lady B</span>
-              <span className="block text-2xs tracking-widest uppercase text-ivory/40 mt-1">Designs & Handcraft</span>
+              <span className="block text-2xs tracking-widest uppercase text-ivory/40 mt-1">Designs &amp; Handcraft</span>
             </div>
             <p className="text-ivory/50 text-sm font-body font-light leading-relaxed mb-6">
               Luxury handcrafted accessories for women of distinction. Made by hand, one bead at a time.
@@ -94,6 +95,7 @@ export function Footer() {
             </div>
           </div>
 
+          {/* Shop */}
           <div>
             <h3 className="text-2xs tracking-widest uppercase text-gold-champagne font-body font-medium mb-5">Shop</h3>
             <ul className="space-y-3">
@@ -105,6 +107,7 @@ export function Footer() {
             </ul>
           </div>
 
+          {/* Brand */}
           <div>
             <h3 className="text-2xs tracking-widest uppercase text-gold-champagne font-body font-medium mb-5">Brand</h3>
             <ul className="space-y-3">
@@ -116,6 +119,7 @@ export function Footer() {
             </ul>
           </div>
 
+          {/* Help */}
           <div>
             <h3 className="text-2xs tracking-widest uppercase text-gold-champagne font-body font-medium mb-5">Help</h3>
             <ul className="space-y-3">
