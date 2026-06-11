@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import { api } from '../../lib/axios';
 import { useAuthStore } from '../../store/auth.store';
@@ -20,13 +21,47 @@ const CREDS = {
 
 const IS_DEV = import.meta.env.DEV;
 
+// When the API is unreachable (no backend running, e.g. Netlify preview),
+// bypass the network call and set a fake user directly in the auth store so
+// the client can still browse all authenticated pages in demo mode.
+function useDemoFallbackLogin() {
+  const { login } = useAuthStore();
+
+  return (role: 'admin' | 'customer') => {
+    const isAdmin = role === 'admin';
+    const user = isAdmin
+      ? {
+          id: 'demo-admin-001',
+          email: CREDS.admin.email,
+          firstName: 'Lady B',
+          lastName: 'Admin',
+          role: 'ADMIN' as const,
+          avatarUrl: null,
+        }
+      : {
+          id: 'demo-customer-001',
+          email: CREDS.customer.email,
+          firstName: 'Demo',
+          lastName: 'Customer',
+          role: 'CUSTOMER' as const,
+          avatarUrl: null,
+        };
+
+    login(user, 'demo-access-token', 'demo-refresh-token');
+    toast.success(`Preview mode — signed in as ${user.firstName}`);
+    window.location.assign(isAdmin ? '/admin' : '/account');
+  };
+}
+
 export function DevPanel() {
   const [open, setOpen] = useState(false);
   const { login, logout, isAuthenticated } = useAuthStore();
+  const demoLogin = useDemoFallbackLogin();
 
   const mutation = useMutation({
-    mutationFn: (creds: { email: string; password: string }) =>
-      api.post('/auth/login', creds).then((r) => r.data),
+    mutationFn: (creds: { email: string; password: string; role: 'admin' | 'customer' }) =>
+      api.post('/auth/login', { email: creds.email, password: creds.password }).then((r) => r.data),
+
     onSuccess: (data, vars) => {
       login(data.data.user, data.data.accessToken, data.data.refreshToken);
       const dest =
@@ -37,8 +72,22 @@ export function DevPanel() {
       window.location.assign(dest);
       setOpen(false);
     },
-    onError: () => toast.error('Login failed — check the API is running'),
+
+    onError: (err, vars) => {
+      // Network error = API unreachable (Netlify preview, no backend deployed).
+      // Fall back to demo mode so the UI is still browseable.
+      if (isAxiosError(err) && !err.response) {
+        demoLogin(vars.role);
+        setOpen(false);
+        return;
+      }
+      toast.error('Login failed — check credentials or run seed');
+    },
   });
+
+  const handleLogin = (role: 'admin' | 'customer') => {
+    mutation.mutate({ ...CREDS[role], role });
+  };
 
   return (
     <div className="fixed bottom-4 left-4 z-[9999] font-mono text-xs">
@@ -52,6 +101,7 @@ export function DevPanel() {
               ✕
             </button>
           </div>
+
           {isAuthenticated ? (
             <button
               onClick={() => {
@@ -66,21 +116,22 @@ export function DevPanel() {
           ) : (
             <div className="space-y-2">
               <button
-                onClick={() => mutation.mutate(CREDS.admin)}
+                onClick={() => handleLogin('admin')}
                 disabled={mutation.isPending}
                 className="w-full border border-gold-champagne/40 py-2 text-gold-champagne hover:bg-gold-champagne/10 transition-colors disabled:opacity-40"
               >
-                Admin
+                {mutation.isPending ? '…' : 'Admin'}
               </button>
               <button
-                onClick={() => mutation.mutate(CREDS.customer)}
+                onClick={() => handleLogin('customer')}
                 disabled={mutation.isPending}
                 className="w-full border border-ivory/20 py-2 text-ivory/70 hover:border-ivory/50 hover:text-ivory transition-colors disabled:opacity-40"
               >
-                Customer
+                {mutation.isPending ? '…' : 'Customer'}
               </button>
             </div>
           )}
+
           <p className="text-ivory/20 text-2xs mt-3 text-center">preview only</p>
         </div>
       ) : (
