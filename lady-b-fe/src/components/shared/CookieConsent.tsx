@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
 import { Cookie } from 'lucide-react';
 
 const STORAGE_KEY = 'lb_consent';
@@ -35,7 +34,7 @@ export function CookieConsent() {
             <Cookie className="h-5 w-5 text-gold-champagne flex-shrink-0 mt-0.5 sm:mt-0" />
             <p className="text-ivory/70 text-xs font-body leading-relaxed flex-1">
               We use cookies to personalise your experience and improve our services. By continuing you agree to our{' '}
-              <Link to="/privacy" className="text-ivory underline underline-offset-2 hover:text-gold-champagne transition-colors">Privacy Policy</Link>.
+              <a href="/privacy" className="text-ivory underline underline-offset-2 hover:text-gold-champagne transition-colors">Privacy Policy</a>.
             </p>
             <div className="flex gap-3 flex-shrink-0">
               <button
