@@ -106,7 +106,7 @@ export function Header() {
       className={cn(
         'w-full transition-all duration-500',
         isScrolled
-          ? 'bg-ivory/96 backdrop-blur-md shadow-luxury border-b border-charcoal-100'
+          ? 'bg-ivory shadow-luxury border-b border-charcoal-100'
           : 'bg-ivory border-b border-charcoal-100/60',
       )}
       role="banner"
@@ -238,8 +238,8 @@ export function Header() {
                       className={({ isActive }) =>
                         cn(
                           'text-xs tracking-luxury uppercase font-body font-medium transition-colors duration-200 whitespace-nowrap',
-                          'relative after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:transition-all after:duration-300 hover:after:w-full after:bg-charcoal-900',
-                          'text-charcoal-600 hover:text-charcoal-900',
+                          'relative after:absolute after:bottom-[-2px] after:left-0 after:h-[2px] after:w-0 after:transition-all after:duration-300 hover:after:w-full after:bg-charcoal-900',
+                          'text-charcoal-700 hover:text-charcoal-900',
                           isActive && 'text-charcoal-900 after:w-full',
                         )
                       }
